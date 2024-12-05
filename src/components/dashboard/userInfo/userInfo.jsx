@@ -124,7 +124,7 @@ const UserInfo = () => {
     });
   };
 
-  const ReservationList = ({ reservations, title, isPast = false }) => {
+  const ReservationList = ({reservations, title, isPast = false}) => {
     const filteredReservations = filterReservations(reservations);
 
     return (
@@ -174,73 +174,172 @@ const UserInfo = () => {
           Welcome, {userDetails?.firstName}!
         </h1>
         <div className="container">
+          {/* User Info Box */}
           <div className="container box text-white">
-            <p>Surname: {userDetails?.lastName}</p>
-            <p>Your email: {userDetails?.email}</p>
-            <p className="font-weight-bold">Your Vehicle:</p>
-            <p>&emsp;&emsp;Make: {carDetails?.carMake || "Not specified"}</p>
-            <p>&emsp;&emsp;Model: {carDetails?.carModel || "Not specified"}</p>
-            <p>&emsp;&emsp;Year: {carDetails?.carYear || "Not specified"}</p>
+            <p>
+              <i className="bi bi-person-circle me-2"></i>
+              Surname: {userDetails?.lastName}
+            </p>
+            <p>
+              <i className="bi bi-envelope me-2"></i>
+              Your email: {userDetails?.email}
+            </p>
+            <p className="font-weight-bold">
+              <i className="bi bi-car-front me-2"></i>
+              Your Vehicle:
+            </p>
+            <p className="ms-4">Make: {carDetails?.carMake || "Not specified"}</p>
+            <p className="ms-4">Model: {carDetails?.carModel || "Not specified"}</p>
+            <p className="ms-4">Year: {carDetails?.carYear || "Not specified"}</p>
           </div>
 
-          <div>
-            <div className="text-center">
-              <Link to={"/dashboard/time"}>
-                <button
-                    type="submit"
-                    className="btn my-4 font-weight-bold atlas-cta cta-blue"
-                >
-                  &emsp;&emsp;&emsp;&emsp;Make a
-                  Reservation&emsp;&emsp;&emsp;&emsp;
-                </button>
-              </Link>
-            </div>
+          {/* Reservation Button */}
+          <div className="text-center">
+            <Link to={"/dashboard/time"}>
+              <button className="btn btn-primary btn-lg my-4">
+                <i className="bi bi-car-front me-2"></i>
+                Make a Reservation
+              </button>
+            </Link>
           </div>
 
-          <div className="container box text-white">
-            {/* Search and Filter Section */}
-            <div className="mb-6">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="relative flex-1">
-                  <input
-                      type="text"
-                      placeholder="Search reservations..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full px-4 py-2 bg-gray-700 rounded-lg pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                </div>
-                <select
-                    value={filterOption}
-                    onChange={(e) => setFilterOption(e.target.value)}
-                    className="px-4 py-2 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="all">All Reservations</option>
-                  <option value="current">Current Only</option>
-                  <option value="past">Past Only</option>
-                </select>
-              </div>
+          {/* Reservations Section */}
+          <div className="container p-4" style={{backgroundColor: '#1B2641', borderRadius: '12px'}}>
+            {/* Search and Filter */}
+            <div className="d-flex align-items-center gap-3 pb-4" style={{ backgroundColor: '#1B2641', padding: '20px' }}>
+              {/* Search area with external icon */}
+              <i className="bi bi-search"
+                 style={{
+                   color: '#6B7280',
+                   fontSize: '20px',
+                   marginRight: '-40px',
+                   zIndex: '1'
+                 }}
+              ></i>
+
+              {/* Search Input */}
+              <input
+                  type="text"
+                  placeholder="Search reservations..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{
+                    flex: '1',
+                    minWidth: '150px',
+                    padding: '12px 20px 12px 50px',
+                    fontSize: '16px',
+                    backgroundColor: '#fff',
+                    border: 'none',
+                    borderRadius: '12px',
+                    color: '#6B7280'
+                  }}
+              />
+
+              {/* Filter Dropdown */}
+              <select
+                  value={filterOption}
+                  onChange={(e) => setFilterOption(e.target.value)}
+                  style={{
+                    maxWidth: '200px',
+                    padding: '12px 40px 12px 20px',
+                    fontSize: '16px',
+                    backgroundColor: 'rgba(44, 52, 68, 0.8)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '12px',
+                    appearance: 'none',
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'right 15px center',
+                    backgroundSize: '16px'
+                  }}
+              >
+                <option value="all">All Reservations</option>
+                <option value="current">Current Only</option>
+                <option value="past">Past Only</option>
+              </select>
             </div>
 
-            {/* Reservations Display */}
+            {/* Reservations Title */}
+            <div className="d-flex align-items-center mb-4">
+              <i className="bi bi-calendar-check me-2 text-white"></i>
+              <h2 className="text-white m-0">Your Reservations</h2>
+            </div>
+
+            {/* Current Reservations */}
             {filterOption !== 'past' && (
-                <ReservationList
-                    reservations={currentResDetails}
-                    title="Current & Upcoming Reservations"
-                />
+                <div className="mb-4">
+                  <h3 className="text-white mb-3">Current & Upcoming Reservations:</h3>
+                  {currentResDetails.length > 0 ? (
+                      currentResDetails.map((reservation, index) => (
+                          <div key={index}
+                               className="mb-3 p-4"
+                               style={{backgroundColor: '#0077FF', borderRadius: '8px', color: 'white'}}>
+                            <h4>Reservation {index + 1}</h4>
+                            <div className="row g-3">
+                              <div className="col-md-6">
+                                <i className="bi bi-clock me-2"></i>
+                                Start: {formatDate(reservation.reservationStartTime)}
+                              </div>
+                              <div className="col-md-6">
+                                <i className="bi bi-clock-fill me-2"></i>
+                                End: {formatDate(reservation.reservationEndTime)}
+                              </div>
+                              <div className="col-md-6">
+                                <i className="bi bi-geo-alt me-2"></i>
+                                Location: {reservation.parkingLot || "Not specified"}
+                              </div>
+                              <div className="col-md-6">
+                                <i className="bi bi-p-square me-2"></i>
+                                Slot: {reservation.slotID || "Not specified"}
+                              </div>
+                            </div>
+                          </div>
+                      ))
+                  ) : (
+                      <p className="text-white-50">No current reservations found.</p>
+                  )}
+                </div>
             )}
+
+            {/* Past Reservations */}
             {filterOption !== 'current' && (
-                <ReservationList
-                    reservations={pastResDetails}
-                    title="Past Reservations"
-                    isPast={true}
-                />
+                <div>
+                  <h3 className="text-white mb-3">Past Reservations:</h3>
+                  {pastResDetails.length > 0 ? (
+                      pastResDetails.map((reservation, index) => (
+                          <div key={index}
+                               className="mb-3 p-4"
+                               style={{backgroundColor: '#4a5568', borderRadius: '8px', color: 'white'}}>
+                            <h4>Reservation {index + 1}</h4>
+                            <div className="row g-3">
+                              <div className="col-md-6">
+                                <i className="bi bi-clock me-2"></i>
+                                Start: {formatDate(reservation.reservationStartTime)}
+                              </div>
+                              <div className="col-md-6">
+                                <i className="bi bi-clock-fill me-2"></i>
+                                End: {formatDate(reservation.reservationEndTime)}
+                              </div>
+                              <div className="col-md-6">
+                                <i className="bi bi-geo-alt me-2"></i>
+                                Location: {reservation.parkingLot || "Not specified"}
+                              </div>
+                              <div className="col-md-6">
+                                <i className="bi bi-p-square me-2"></i>
+                                Slot: {reservation.slotID || "Not specified"}
+                              </div>
+                            </div>
+                          </div>
+                      ))
+                  ) : (
+                      <p className="text-white-50">No past reservations found.</p>
+                  )}
+                </div>
             )}
           </div>
         </div>
       </div>
   );
-};
-
+}
 export default UserInfo;
