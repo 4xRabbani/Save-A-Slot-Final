@@ -16,6 +16,18 @@ const UserInfo = () => {
   const [carDetails, setCarDetails] = useState(null);
   const [resDetails, setResDetails] = useState([]);
 
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+  }
+
   const fetchUserDetails = async () => {
     auth.onAuthStateChanged(async (user) => {
       if (user) {
@@ -135,25 +147,27 @@ const UserInfo = () => {
                     // Calculate time difference from now
                     const diffA = Math.abs(timeA - now);
                     const diffB = Math.abs(timeB - now);
-
-                    return diffA - diffB; // Closest time first
+                    
+                    // Closest time first
+                    return diffA - diffB;
                   })
                   .map((reservation, index) => (
                       <div key={index}>
                         <p>Reservation {index + 1}:</p>
                         <p>
                           Start Time:{" "}
-                          {reservation.reservationStartTime || "Not specified"}
+                          {formatDate(reservation.reservationStartTime) || "Not specified"}
                         </p>
                         <p>
-                          End Time: {reservation.reservationEndTime || "Not specified"}
+                          End Time:{" "}
+                          {formatDate(reservation.reservationEndTime) || "Not specified"}
                         </p>
                         <p>Parking Lot: {reservation.parkingLot || "Not specified"}</p>
                         <p>Parking Slot: {reservation.slotID || "Not specified"}</p>
                       </div>
-            ))
+                  ))
           ) : (
-            <p>No reservations found.</p>
+              <p>No reservations found.</p>
           )}
         </div>
       </div>
