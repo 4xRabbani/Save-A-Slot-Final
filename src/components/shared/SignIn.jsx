@@ -35,7 +35,7 @@ const SignIn = () => {
     <><div className="jumbotron-fluid py-2 container">
       <header>
         <div className="container row justify-content-between">
-          <div className="col-2">
+          <div className="col-4">
             <img src={logo} alt="logo" />
           </div>
         </div>
