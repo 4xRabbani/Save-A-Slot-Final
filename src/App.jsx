@@ -12,6 +12,7 @@ import Park from "./components/dashboard/park/park";
 // import Reservation from "./components/dashboard/reservation/reservation";
 import Privacy from "./components/shared/privacy/privacy";
 import Terms from "./components/shared/terms/terms";
+import Team from "./components/shared/team/team";
 import NotFound from "./components/shared/error/NotFound";
 
 import "./App.css";
@@ -30,6 +31,7 @@ function App() {
           <Route path="/dashboard/park" element={<Park />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
+          <Route path="/team" element={<Team />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         <div>
