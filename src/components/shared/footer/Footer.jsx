@@ -1,3 +1,21 @@
+import appStoreBadge from "/appstore.png";
+import playStoreBadge from "/playstore.png";
+
+const DownloadButtons = () => {
+  return (
+    <div>
+      {/* App Store Button */}
+      <a href="https://apps.apple.com/" target="_blank" rel="noopener noreferrer">
+        <img src={appStoreBadge} alt="Download on the App Store" style={{ height: '55px' }} />
+      </a>
+
+      {/* Google Play Button */}
+      <a href="https://play.google.com/store/apps" target="_blank" rel="noopener noreferrer">
+        <img src={playStoreBadge} alt="Get it on Google Play" style={{ height: '80px' }} />
+      </a>
+    </div>
+  );
+};
 
 function Footer() {
 
@@ -20,6 +38,9 @@ function Footer() {
             <a href="/terms">
               Terms &amp; Services
             </a>
+          </div>
+          <div className="align-self-center text-center text-md-left my-2 ">
+            <DownloadButtons />
           </div>
       </div>
     </div>
