@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { auth, db } from "../../../firebase/firebase";
-import { Search } from "lucide-react";
+import { Search, ChevronDown, ChevronUp, Calendar, Clock, MapPin } from "lucide-react";
 import {
   getDoc,
   getDocs,
@@ -16,8 +16,10 @@ const UserInfo = () => {
   const [carDetails, setCarDetails] = useState(null);
   const [currentResDetails, setCurrentResDetails] = useState([]);
   const [pastResDetails, setPastResDetails] = useState([]);
+  const [archivedResDetails, setArchivedResDetails] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterOption, setFilterOption] = useState("all");
+  const [isArchiveExpanded, setIsArchiveExpanded] = useState(false);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -69,36 +71,32 @@ const UserInfo = () => {
         if (!resSnap.empty) {
           const allReservations = resSnap.docs.map((doc) => doc.data());
 
-          // Separate current and past reservations
+          // Separate current, past, and archived reservations
           const now = new Date();
+          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
           const current = [];
           const past = [];
+          const archived = [];
 
           allReservations.forEach(reservation => {
             const endTime = new Date(reservation.reservationEndTime);
-            if (endTime < now) {
+            if (endTime > now) {
+              current.push(reservation);
+            } else if (endTime > weekAgo) {
               past.push(reservation);
             } else {
-              current.push(reservation);
+              archived.push(reservation);
             }
           });
 
-          // Sort current reservations by closest to now
-          current.sort((a, b) => {
-            const timeA = new Date(a.reservationStartTime);
-            const timeB = new Date(b.reservationStartTime);
-            return timeA - timeB;
-          });
-
-          // Sort past reservations by most recent first
-          past.sort((a, b) => {
-            const timeA = new Date(a.reservationEndTime);
-            const timeB = new Date(b.reservationEndTime);
-            return timeB - timeA;
-          });
+          // Sort all reservation arrays
+          current.sort((a, b) => new Date(a.reservationStartTime) - new Date(b.reservationStartTime));
+          past.sort((a, b) => new Date(b.reservationEndTime) - new Date(a.reservationEndTime));
+          archived.sort((a, b) => new Date(b.reservationEndTime) - new Date(a.reservationEndTime));
 
           setCurrentResDetails(current);
           setPastResDetails(past);
+          setArchivedResDetails(archived);
         }
       } else {
         console.log("No user signed in!");
@@ -122,50 +120,6 @@ const UserInfo = () => {
 
       return searchFields.some(field => field.includes(searchTerm.toLowerCase()));
     });
-  };
-
-  const ReservationList = ({reservations, title, isPast = false}) => {
-    const filteredReservations = filterReservations(reservations);
-
-    return (
-        <div className={`mt-6 ${isPast ? 'opacity-75' : ''}`}>
-          <h3 className="text-xl font-bold mb-4">{title}:</h3>
-          {filteredReservations.length > 0 ? (
-              filteredReservations.map((reservation, index) => (
-                  <div
-                      key={index}
-                      className={`mb-4 p-4 rounded-lg ${
-                          isPast
-                              ? 'bg-gray-700 border-gray-600'
-                              : 'bg-blue-900 border-blue-700'
-                      } border`}
-                  >
-                    <p className="font-bold text-lg mb-2">Reservation {index + 1}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <p className="text-gray-300">Start Time:</p>
-                        <p className="font-medium">{formatDate(reservation.reservationStartTime)}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-300">End Time:</p>
-                        <p className="font-medium">{formatDate(reservation.reservationEndTime)}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-300">Parking Lot:</p>
-                        <p className="font-medium">{reservation.parkingLot || "Not specified"}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-300">Parking Slot:</p>
-                        <p className="font-medium">{reservation.slotID || "Not specified"}</p>
-                      </div>
-                    </div>
-                  </div>
-              ))
-          ) : (
-              <p className="text-gray-400">No {title.toLowerCase()} found.</p>
-          )}
-        </div>
-    );
   };
 
   return (
@@ -207,7 +161,6 @@ const UserInfo = () => {
           <div className="container p-4" style={{backgroundColor: '#1B2641', borderRadius: '12px'}}>
             {/* Search and Filter */}
             <div className="d-flex align-items-center gap-3 pb-4" style={{ backgroundColor: '#1B2641', padding: '20px' }}>
-              {/* Search area with external icon */}
               <i className="bi bi-search"
                  style={{
                    color: '#6B7280',
@@ -216,8 +169,6 @@ const UserInfo = () => {
                    zIndex: '1'
                  }}
               ></i>
-
-              {/* Search Input */}
               <input
                   type="text"
                   placeholder="Search reservations..."
@@ -234,8 +185,6 @@ const UserInfo = () => {
                     color: '#6B7280'
                   }}
               />
-
-              {/* Filter Dropdown */}
               <select
                   value={filterOption}
                   onChange={(e) => setFilterOption(e.target.value)}
@@ -304,7 +253,7 @@ const UserInfo = () => {
 
             {/* Past Reservations */}
             {filterOption !== 'current' && (
-                <div>
+                <div className="mb-4">
                   <h3 className="text-white mb-3">Past Reservations:</h3>
                   {pastResDetails.length > 0 ? (
                       pastResDetails.map((reservation, index) => (
@@ -337,9 +286,64 @@ const UserInfo = () => {
                   )}
                 </div>
             )}
+
+            {/* Archived Reservations */}
+            {filterOption !== 'current' && (
+                <div className="mt-4">
+                  <button
+                      onClick={() => setIsArchiveExpanded(!isArchiveExpanded)}
+                      className="w-100 d-flex justify-content-between align-items-center p-3"
+                      style={{
+                        backgroundColor: '#2d3748',
+                        border: 'none',
+                        borderRadius: '8px',
+                        color: 'white',
+                        cursor: 'pointer'
+                      }}
+                  >
+                    <span className="fw-bold">Archived Reservations (Older than 1 week)</span>
+                    <i className={`bi bi-chevron-${isArchiveExpanded ? 'up' : 'down'}`}></i>
+                  </button>
+
+                  {isArchiveExpanded && (
+                      <div className="mt-3">
+                        {archivedResDetails.length > 0 ? (
+                            archivedResDetails.map((reservation, index) => (
+                                <div key={index}
+                                     className="mb-3 p-4"
+                                     style={{backgroundColor: '#2d3748', borderRadius: '8px', color: 'white'}}>
+                                  <h4>Reservation {index + 1}</h4>
+                                  <div className="row g-3">
+                                    <div className="col-md-6">
+                                      <i className="bi bi-clock me-2"></i>
+                                      Start: {formatDate(reservation.reservationStartTime)}
+                                    </div>
+                                    <div className="col-md-6">
+                                      <i className="bi bi-clock-fill me-2"></i>
+                                      End: {formatDate(reservation.reservationEndTime)}
+                                    </div>
+                                    <div className="col-md-6">
+                                      <i className="bi bi-geo-alt me-2"></i>
+                                      Location: {reservation.parkingLot || "Not specified"}
+                                    </div>
+                                    <div className="col-md-6">
+                                      <i className="bi bi-p-square me-2"></i>
+                                      Slot: {reservation.slotID || "Not specified"}
+                                    </div>
+                                  </div>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-white-50 mt-3">No archived reservations found.</p>
+                        )}
+                      </div>
+                  )}
+                </div>
+            )}
           </div>
         </div>
       </div>
   );
 }
+
 export default UserInfo;
