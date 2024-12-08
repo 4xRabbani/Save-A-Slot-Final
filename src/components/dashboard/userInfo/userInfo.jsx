@@ -33,6 +33,16 @@ const UserInfo = () => {
     });
   }
 
+  // Helper function to format date for searching
+  const formatDateForSearch = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    }).toLowerCase();
+  };
+
   const fetchUserDetails = async () => {
     auth.onAuthStateChanged(async (user) => {
       if (user) {
@@ -109,17 +119,73 @@ const UserInfo = () => {
     fetchUserDetails();
   }, []);
 
+// Enhanced filter function with better date and slot search
   const filterReservations = (reservations) => {
-    return reservations.filter(reservation => {
-      const searchFields = [
-        reservation.parkingLot,
-        reservation.slotID,
-        formatDate(reservation.reservationStartTime),
-        formatDate(reservation.reservationEndTime)
-      ].map(field => field.toLowerCase());
+    if (!searchTerm.trim()) return reservations;
 
-      return searchFields.some(field => field.includes(searchTerm.toLowerCase()));
+    const searchLower = searchTerm.toLowerCase();
+
+    // Helper function to check if a date matches the search
+    const isDateMatch = (dateStr) => {
+      const formattedDate = formatDateForSearch(dateStr);
+      const searchDate = searchLower.replace(/[/.-]/g, ''); // Remove common date separators
+
+      return (
+          formattedDate.includes(searchLower) || // Match formatted date
+          dateStr.toLowerCase().includes(searchLower) || // Match raw date
+          formattedDate.replace(/[/.-]/g, '').includes(searchDate) // Match without separators
+      );
+    };
+
+    // Helper function to check if slot info matches the search
+    const isSlotMatch = (slotInfo) => {
+      const slotLower = slotInfo.toLowerCase();
+      return (
+          slotLower.includes(searchLower) || // Exact match
+          slotLower.replace(/[- ]/g, '').includes(searchLower.replace(/[- ]/g, '')) // Match without separators
+      );
+    };
+
+    return reservations.filter(reservation => {
+      // Check various fields for matches
+      return (
+          // Search by parking lot
+          reservation.parkingLot.toLowerCase().includes(searchLower) ||
+
+          // Search by slot ID (with flexible matching)
+          isSlotMatch(reservation.slotID) ||
+
+          // Search by dates
+          isDateMatch(reservation.reservationStartTime) ||
+          isDateMatch(reservation.reservationEndTime) ||
+
+          // Search by month name
+          formatDate(reservation.reservationStartTime).toLowerCase().includes(searchLower) ||
+          formatDate(reservation.reservationEndTime).toLowerCase().includes(searchLower)
+      );
     });
+  };
+
+  // Function to get filtered reservations based on current filter option
+  const getFilteredReservations = () => {
+    let reservationsToShow = [];
+
+    switch (filterOption) {
+      case 'current':
+        reservationsToShow = currentResDetails;
+        break;
+      case 'past':
+        reservationsToShow = [...pastResDetails, ...(isArchiveExpanded ? archivedResDetails : [])];
+        break;
+      default: // 'all'
+        reservationsToShow = [
+          ...currentResDetails,
+          ...pastResDetails,
+          ...(isArchiveExpanded ? archivedResDetails : [])
+        ];
+    }
+
+    return filterReservations(reservationsToShow);
   };
 
   return (
