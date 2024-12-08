@@ -201,7 +201,7 @@ const UserInfo = () => {
               ></i>
               <input
                   type="text"
-                  placeholder="Search by date, slot, or location..."
+                  placeholder="Search by date, slot, or location"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   style={{
