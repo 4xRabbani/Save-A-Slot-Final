@@ -31,9 +31,8 @@ const UserInfo = () => {
       minute: '2-digit',
       hour12: true
     });
-  }
+  };
 
-  // Helper function to format date for searching
   const formatDateForSearch = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
@@ -41,6 +40,42 @@ const UserInfo = () => {
       month: 'short',
       day: 'numeric',
     }).toLowerCase();
+  };
+
+  const filterReservations = (reservations) => {
+    if (!searchTerm.trim()) return reservations;
+
+    const searchLower = searchTerm.toLowerCase();
+
+    const isDateMatch = (dateStr) => {
+      const formattedDate = formatDateForSearch(dateStr);
+      const searchDate = searchLower.replace(/[/.-]/g, '');
+
+      return (
+          formattedDate.includes(searchLower) ||
+          dateStr.toLowerCase().includes(searchLower) ||
+          formattedDate.replace(/[/.-]/g, '').includes(searchDate)
+      );
+    };
+
+    const isSlotMatch = (slotInfo) => {
+      const slotLower = slotInfo.toLowerCase();
+      return (
+          slotLower.includes(searchLower) ||
+          slotLower.replace(/[- ]/g, '').includes(searchLower.replace(/[- ]/g, ''))
+      );
+    };
+
+    return reservations.filter(reservation => {
+      return (
+          reservation.parkingLot.toLowerCase().includes(searchLower) ||
+          isSlotMatch(reservation.slotID) ||
+          isDateMatch(reservation.reservationStartTime) ||
+          isDateMatch(reservation.reservationEndTime) ||
+          formatDate(reservation.reservationStartTime).toLowerCase().includes(searchLower) ||
+          formatDate(reservation.reservationEndTime).toLowerCase().includes(searchLower)
+      );
+    });
   };
 
   const fetchUserDetails = async () => {
@@ -81,7 +116,6 @@ const UserInfo = () => {
         if (!resSnap.empty) {
           const allReservations = resSnap.docs.map((doc) => doc.data());
 
-          // Separate current, past, and archived reservations
           const now = new Date();
           const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
           const current = [];
@@ -99,7 +133,6 @@ const UserInfo = () => {
             }
           });
 
-          // Sort all reservation arrays
           current.sort((a, b) => new Date(a.reservationStartTime) - new Date(b.reservationStartTime));
           past.sort((a, b) => new Date(b.reservationEndTime) - new Date(a.reservationEndTime));
           archived.sort((a, b) => new Date(b.reservationEndTime) - new Date(a.reservationEndTime));
@@ -118,75 +151,6 @@ const UserInfo = () => {
   useEffect(() => {
     fetchUserDetails();
   }, []);
-
-// Enhanced filter function with better date and slot search
-  const filterReservations = (reservations) => {
-    if (!searchTerm.trim()) return reservations;
-
-    const searchLower = searchTerm.toLowerCase();
-
-    // Helper function to check if a date matches the search
-    const isDateMatch = (dateStr) => {
-      const formattedDate = formatDateForSearch(dateStr);
-      const searchDate = searchLower.replace(/[/.-]/g, ''); // Remove common date separators
-
-      return (
-          formattedDate.includes(searchLower) || // Match formatted date
-          dateStr.toLowerCase().includes(searchLower) || // Match raw date
-          formattedDate.replace(/[/.-]/g, '').includes(searchDate) // Match without separators
-      );
-    };
-
-    // Helper function to check if slot info matches the search
-    const isSlotMatch = (slotInfo) => {
-      const slotLower = slotInfo.toLowerCase();
-      return (
-          slotLower.includes(searchLower) || // Exact match
-          slotLower.replace(/[- ]/g, '').includes(searchLower.replace(/[- ]/g, '')) // Match without separators
-      );
-    };
-
-    return reservations.filter(reservation => {
-      // Check various fields for matches
-      return (
-          // Search by parking lot
-          reservation.parkingLot.toLowerCase().includes(searchLower) ||
-
-          // Search by slot ID (with flexible matching)
-          isSlotMatch(reservation.slotID) ||
-
-          // Search by dates
-          isDateMatch(reservation.reservationStartTime) ||
-          isDateMatch(reservation.reservationEndTime) ||
-
-          // Search by month name
-          formatDate(reservation.reservationStartTime).toLowerCase().includes(searchLower) ||
-          formatDate(reservation.reservationEndTime).toLowerCase().includes(searchLower)
-      );
-    });
-  };
-
-  // Function to get filtered reservations based on current filter option
-  const getFilteredReservations = () => {
-    let reservationsToShow = [];
-
-    switch (filterOption) {
-      case 'current':
-        reservationsToShow = currentResDetails;
-        break;
-      case 'past':
-        reservationsToShow = [...pastResDetails, ...(isArchiveExpanded ? archivedResDetails : [])];
-        break;
-      default: // 'all'
-        reservationsToShow = [
-          ...currentResDetails,
-          ...pastResDetails,
-          ...(isArchiveExpanded ? archivedResDetails : [])
-        ];
-    }
-
-    return filterReservations(reservationsToShow);
-  };
 
   return (
       <div className="container jumbotron-fluid py-2">
@@ -237,7 +201,7 @@ const UserInfo = () => {
               ></i>
               <input
                   type="text"
-                  placeholder="Search reservations..."
+                  placeholder="Search by date, slot, or location..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   style={{
@@ -285,8 +249,8 @@ const UserInfo = () => {
             {filterOption !== 'past' && (
                 <div className="mb-4">
                   <h3 className="text-white mb-3">Current & Upcoming Reservations:</h3>
-                  {currentResDetails.length > 0 ? (
-                      currentResDetails.map((reservation, index) => (
+                  {filterReservations(currentResDetails).length > 0 ? (
+                      filterReservations(currentResDetails).map((reservation, index) => (
                           <div key={index}
                                className="mb-3 p-4"
                                style={{backgroundColor: '#0077FF', borderRadius: '8px', color: 'white'}}>
@@ -312,7 +276,9 @@ const UserInfo = () => {
                           </div>
                       ))
                   ) : (
-                      <p className="text-white-50">No current reservations found.</p>
+                      <p className="text-white-50">
+                        {searchTerm ? "No matching current reservations found." : "No current reservations found."}
+                      </p>
                   )}
                 </div>
             )}
@@ -321,8 +287,8 @@ const UserInfo = () => {
             {filterOption !== 'current' && (
                 <div className="mb-4">
                   <h3 className="text-white mb-3">Past Reservations:</h3>
-                  {pastResDetails.length > 0 ? (
-                      pastResDetails.map((reservation, index) => (
+                  {filterReservations(pastResDetails).length > 0 ? (
+                      filterReservations(pastResDetails).map((reservation, index) => (
                           <div key={index}
                                className="mb-3 p-4"
                                style={{backgroundColor: '#4a5568', borderRadius: '8px', color: 'white'}}>
@@ -348,7 +314,9 @@ const UserInfo = () => {
                           </div>
                       ))
                   ) : (
-                      <p className="text-white-50">No past reservations found.</p>
+                      <p className="text-white-50">
+                        {searchTerm ? "No matching past reservations found." : "No past reservations found."}
+                      </p>
                   )}
                 </div>
             )}
@@ -373,8 +341,8 @@ const UserInfo = () => {
 
                   {isArchiveExpanded && (
                       <div className="mt-3">
-                        {archivedResDetails.length > 0 ? (
-                            archivedResDetails.map((reservation, index) => (
+                        {filterReservations(archivedResDetails).length > 0 ? (
+                            filterReservations(archivedResDetails).map((reservation, index) => (
                                 <div key={index}
                                      className="mb-3 p-4"
                                      style={{backgroundColor: '#2d3748', borderRadius: '8px', color: 'white'}}>
@@ -400,7 +368,9 @@ const UserInfo = () => {
                                 </div>
                             ))
                         ) : (
-                            <p className="text-white-50 mt-3">No archived reservations found.</p>
+                            <p className="text-white-50 mt-3">
+                              {searchTerm ? "No matching archived reservations found." : "No archived reservations found."}
+                            </p>
                         )}
                       </div>
                   )}
@@ -410,6 +380,6 @@ const UserInfo = () => {
         </div>
       </div>
   );
-}
+};
 
 export default UserInfo;
