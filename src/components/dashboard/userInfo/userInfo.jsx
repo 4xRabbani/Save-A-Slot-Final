@@ -159,26 +159,26 @@ const UserInfo = () => {
         </h1>
         <div className="container">
           {/* User Info Box */}
-          <div className="container box text-white">
-            <p>
-              <i className="bi bi-person-circle me-2"></i>
-              Surname: {userDetails?.lastName}
-            </p>
-            <p>
-              <i className="bi bi-envelope me-2"></i>
-              Your email: {userDetails?.email}
-            </p>
-            <p className="font-weight-bold">
-              <i className="bi bi-car-front me-2"></i>
-              Your Vehicle:
-            </p>
-            <p className="ms-4">Make: {carDetails?.carMake || "Not specified"}</p>
-            <p className="ms-4">Model: {carDetails?.carModel || "Not specified"}</p>
-            <p className="ms-4">Year: {carDetails?.carYear || "Not specified"}</p>
-          </div>
+            <div className="container box text-white">
+                <p>
+                    <h3><i className="bi bi-person-circle me-2"></i>
+                        Personal Information</h3>
+                </p>
+                <p className="ms-10">First Name: {userDetails?.firstName}</p>
+                <p className="ms-10">Last Name: {userDetails?.lastName}</p>
+                <p className="ms-10">Email Address: {userDetails?.email}</p>
 
-          {/* Reservation Button */}
-          <div className="text-center">
+                <p className="font-weight-bold">
+                    <h3><i className="bi bi-car-front me-2"></i>
+                        Your Vehicle:</h3>
+                </p>
+                <p className="ms-10">Make : {carDetails?.carMake || "Not specified"}</p>
+                <p className="ms-10">Model: {carDetails?.carModel || "Not specified"}</p>
+                <p className="ms-10">Year : {carDetails?.carYear || "Not specified"}</p>
+            </div>
+
+            {/* Reservation Button */}
+            <div className="text-center">
             <Link to={"/dashboard/time"}>
               <button className="btn btn-primary btn-lg my-4">
                 <i className="bi bi-car-front me-2"></i>
@@ -254,11 +254,11 @@ const UserInfo = () => {
                           <div key={index}
                                className="mb-3 p-4"
                                style={{backgroundColor: '#0077FF', borderRadius: '8px', color: 'white'}}>
-                            <h4>Reservation {index + 1}</h4>
+                            {/*<h4>Reservation {index + 1}</h4>*/}
                             <div className="row g-3">
                               <div className="col-md-6">
-                                <i className="bi bi-clock me-2"></i>
-                                Start: {formatDate(reservation.reservationStartTime)}
+                                <h4><i className="bi bi-clock me-2"></i>
+                                Start: {formatDate(reservation.reservationStartTime)}</h4>
                               </div>
                               <div className="col-md-6">
                                 <i className="bi bi-clock-fill me-2"></i>
@@ -292,7 +292,7 @@ const UserInfo = () => {
                           <div key={index}
                                className="mb-3 p-4"
                                style={{backgroundColor: '#4a5568', borderRadius: '8px', color: 'white'}}>
-                            <h4>Reservation {index + 1}</h4>
+                            {/*<h4>Reservation {index + 1}</h4>*/}
                             <div className="row g-3">
                               <div className="col-md-6">
                                 <i className="bi bi-clock me-2"></i>
@@ -346,7 +346,7 @@ const UserInfo = () => {
                                 <div key={index}
                                      className="mb-3 p-4"
                                      style={{backgroundColor: '#2d3748', borderRadius: '8px', color: 'white'}}>
-                                  <h4>Reservation {index + 1}</h4>
+                                  {/*<h4>Reservation {index + 1}</h4>*/}
                                   <div className="row g-3">
                                     <div className="col-md-6">
                                       <i className="bi bi-clock me-2"></i>
