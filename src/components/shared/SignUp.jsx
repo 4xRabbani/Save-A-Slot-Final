@@ -23,7 +23,7 @@ const SignUp = () => {
 
   // Generate year options from 1999 to current year
   const currentYear = new Date().getFullYear();
-  const years = Array.from(new Array(currentYear - 1998), (val, index) => currentYear - index);
+  const years = Array.from(new Array(currentYear - 1991), (val, index) => currentYear - index);
 
   // Function to fetch and parse CSV
   const fetchCSV = async (filepath) => {
