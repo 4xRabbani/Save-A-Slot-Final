@@ -141,7 +141,7 @@ function Park() {
         return numA - numB;
       });
 
-  // Split slots into two rows (1-9 in top row, 14-23 in bottom row)
+  // Split slots into two rows
   const topRow = uniqueSlots.filter(slot => {
     const num = parseInt(slot.id.replace('Slot', ''));
     return num <= 9;
@@ -149,14 +149,14 @@ function Park() {
 
   const bottomRow = uniqueSlots.filter(slot => {
     const num = parseInt(slot.id.replace('Slot', ''));
-    return num >= 14;
+    return num >= 10;
   });
 
   return (
-      <div className="min-h-screen bg-white p-8">
+      <div className="min-h-screen bg-white p-4 md:p-8">
         <div className="max-w-6xl mx-auto">
           {/* Legend */}
-          <div className="mb-8 flex gap-6">
+          <div className="mb-6 flex flex-wrap gap-4 justify-center md:justify-start">
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-blue-500 rounded"></div>
               <span>Available</span>
@@ -171,74 +171,73 @@ function Park() {
             </div>
           </div>
 
-          {/* Top row */}
-          <div className="grid grid-cols-9 gap-4 mb-4">
-            {topRow.map((slot) => (
-                <button
-                    key={slot.id}
-                    onClick={() => handleSlotSelection(slot.id)}
-                    disabled={!slot.isAvailable}
-                    className={`
-                aspect-square rounded-lg p-4
-                flex flex-col items-center justify-center
-                transition-all duration-200
-                ${slot.isAvailable
-                        ? 'bg-blue-500 hover:bg-blue-600'
-                        : 'bg-gray-600'
-                    }
-                ${selectedSlot === slot.id ? 'bg-green-500' : ''}
-                disabled:cursor-not-allowed
-              `}
-                >
-                  <span className="text-white font-semibold">{slot.id}</span>
-                  {!slot.isAvailable && (
-                      <Car className="text-white mt-2" size={24} />
-                  )}
-                </button>
-            ))}
-          </div>
+          {/* Parking Layout Container - Scrollable on mobile */}
+          <div className="overflow-x-auto pb-4">
+            <div className="min-w-[640px]"> {/* Minimum width to prevent squishing */}
+              {/* Top row */}
+              <div className="grid grid-cols-9 gap-2 md:gap-4 mb-4">
+                {topRow.map((slot) => (
+                    <button
+                        key={slot.id}
+                        onClick={() => handleSlotSelection(slot.id)}
+                        disabled={!slot.isAvailable}
+                        className={`
+                    aspect-square rounded-lg p-2 md:p-4
+                    flex flex-col items-center justify-center
+                    transition-all duration-200
+                    ${slot.isAvailable ? 'bg-blue-500 hover:bg-blue-600' : 'bg-gray-600'}
+                    ${selectedSlot === slot.id ? 'bg-green-500' : ''}
+                    disabled:cursor-not-allowed
+                  `}
+                    >
+                      <span className="text-white text-sm md:text-base font-semibold">{slot.id}</span>
+                      {!slot.isAvailable && (
+                          <Car className="text-white mt-1 md:mt-2" size={20} />
+                      )}
+                    </button>
+                ))}
+              </div>
 
-          {/* Driving lane */}
-          <div className="text-center py-4 mb-4 bg-gray-100 rounded-lg">
-            DRIVING LANE
-          </div>
+              {/* Driving lane */}
+              <div className="text-center py-2 md:py-4 mb-4 bg-gray-100 rounded-lg text-sm md:text-base">
+                DRIVING LANE
+              </div>
 
-          {/* Bottom row */}
-          <div className="grid grid-cols-9 gap-4">
-            {bottomRow.map((slot) => (
-                <button
-                    key={slot.id}
-                    onClick={() => handleSlotSelection(slot.id)}
-                    disabled={!slot.isAvailable}
-                    className={`
-                aspect-square rounded-lg p-4
-                flex flex-col items-center justify-center
-                transition-all duration-200
-                ${slot.isAvailable
-                        ? 'bg-blue-500 hover:bg-blue-600'
-                        : 'bg-gray-600'
-                    }
-                ${selectedSlot === slot.id ? 'bg-green-500' : ''}
-                disabled:cursor-not-allowed
-              `}
-                >
-                  <span className="text-white font-semibold">{slot.id}</span>
-                  {!slot.isAvailable && (
-                      <Car className="text-white mt-2" size={24} />
-                  )}
-                </button>
-            ))}
+              {/* Bottom row */}
+              <div className="grid grid-cols-9 gap-2 md:gap-4">
+                {bottomRow.map((slot) => (
+                    <button
+                        key={slot.id}
+                        onClick={() => handleSlotSelection(slot.id)}
+                        disabled={!slot.isAvailable}
+                        className={`
+                    aspect-square rounded-lg p-2 md:p-4
+                    flex flex-col items-center justify-center
+                    transition-all duration-200
+                    ${slot.isAvailable ? 'bg-blue-500 hover:bg-blue-600' : 'bg-gray-600'}
+                    ${selectedSlot === slot.id ? 'bg-green-500' : ''}
+                    disabled:cursor-not-allowed
+                  `}
+                    >
+                      <span className="text-white text-sm md:text-base font-semibold">{slot.id}</span>
+                      {!slot.isAvailable && (
+                          <Car className="text-white mt-1 md:mt-2" size={20} />
+                      )}
+                    </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Selected slot info */}
           {selectedSlot && (
-              <div className="mt-8 text-center">
-                <div className="text-lg mb-2">
+              <div className="mt-6 md:mt-8 text-center">
+                <div className="text-base md:text-lg mb-2">
                   Selected: <span className="font-bold">{selectedSlot}</span>
                 </div>
                 <button
                     onClick={() => handleSlotSelection(selectedSlot)}
-                    className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600"
+                    className="bg-blue-500 text-white px-4 md:px-6 py-2 rounded-lg hover:bg-blue-600 text-sm md:text-base"
                 >
                   Confirm Selection
                 </button>
