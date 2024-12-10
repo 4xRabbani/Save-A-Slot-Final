@@ -155,7 +155,7 @@ const UserInfo = () => {
 
   return (
       <div className="container py-2">
-          <h1 className="text-3xl font-bold my-5">
+          <h1 className="text-3xl font-bold my-3">
               Welcome, {userDetails?.firstName}!
           </h1>
 
@@ -173,10 +173,10 @@ const UserInfo = () => {
                   <div>
                       <div className="mb-6">
                           <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem', display: 'flex', alignItems: 'center' }}>
-                              <i className="bi bi-person-circle me-2"></i>
-                              Personal Information
+                              <u><i className="bi bi-person-circle me-2"></i>
+                              Personal Information</u>
                           </h3>
-                          <div style={{ marginLeft: '1rem' }}>
+                          <div style={{ marginLeft: '1.75rem' }}>
                               <p>First Name: {userDetails?.firstName}</p>
                               <p>Last Name: {userDetails?.lastName}</p>
                               <p>Email Address: {userDetails?.email}</p>
@@ -185,10 +185,10 @@ const UserInfo = () => {
 
                       <div>
                           <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem', display: 'flex', alignItems: 'center' }}>
-                              <i className="bi bi-car-front me-2"></i>
-                              Your Vehicle
+                              <u><i className="bi bi-car-front me-2"></i>
+                              Your Vehicle</u>
                           </h3>
-                          <div style={{ marginLeft: '1rem' }}>
+                          <div style={{ marginLeft: '1.75rem' }}>
                               <p>Make: {carDetails?.carMake || "Not specified"}</p>
                               <p>Model: {carDetails?.carModel || "Not specified"}</p>
                               <p>Year: {carDetails?.carYear || "Not specified"}</p>

@@ -5,6 +5,23 @@ const WeatherWidget = () => {
     const [weather, setWeather] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [locationName, setLocationName] = useState(null);
+
+    const getLocationName = async (latitude, longitude) => {
+        try {
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+            );
+            const data = await response.json();
+
+            const address = data.address;
+            const location = address.city || address.town || address.village || address.suburb || address.county;
+            setLocationName(location);
+        } catch (err) {
+            console.error('Failed to fetch location name:', err);
+            setLocationName(null);
+        }
+    };
 
     useEffect(() => {
         if (navigator.geolocation) {
@@ -12,9 +29,11 @@ const WeatherWidget = () => {
                 async (position) => {
                     try {
                         const { latitude, longitude } = position.coords;
+                        await getLocationName(latitude, longitude);
+
                         const response = await fetch(
-                            'https://api.open-meteo.com/v1/forecast?latitude=42.3584&longitude=-71.0598&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,rain,showers,snowfall,weather_code,cloud_cover,pressure_msl,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch'
-                            );
+                            `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,rain,showers,snowfall,weather_code,cloud_cover,pressure_msl,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch`
+                        );
                         const data = await response.json();
                         setWeather(data.current);
                         setLoading(false);
@@ -85,11 +104,30 @@ const WeatherWidget = () => {
         <div>
             <div style={{
                 display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '1rem'
+                justifyContent: 'flex-start',
+                alignItems: 'baseline',
+                marginBottom: '1rem',
+                gap: '0.75rem'
             }}>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: '600' }}>Current Weather</h3>
+                <h3 style={{
+                    fontSize: '1.25rem',
+                    fontWeight: '600',
+                    margin: 0
+                }}>
+                    <i className="bi bi-thermometer-half"></i>
+                    <u>Current Weather</u>
+                </h3>
+                {locationName && (
+                    <span style={{
+                        fontSize: '1.25rem',
+                        color: '#2dd4bf',
+                        backgroundColor: 'rgba(45, 212, 191, 0.1)',
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '0.25rem'
+                    }}>
+                        {locationName}
+                    </span>
+                )}
             </div>
 
             {loading && (
@@ -127,8 +165,15 @@ const WeatherWidget = () => {
                         justifyContent: 'space-between'
                     }}>
                         <div>
-                            <p style={{ fontSize: '1.875rem', fontWeight: 'bold' }}>
+                            <p style={{ fontSize: '5rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
                                 {Math.round(weather.temperature_2m)}°F
+                            </p>
+                            <p style={{
+                                color: '#9ca3af',
+                                fontSize: '1.25rem',
+                                marginBottom: '0.5rem'
+                            }}>
+                                <h6>Feels like {Math.round(weather.apparent_temperature)}°F</h6>
                             </p>
                             <p style={{
                                 color: '#d1d5db',
@@ -143,10 +188,10 @@ const WeatherWidget = () => {
                     <div style={{
                         display: 'grid',
                         gridTemplateColumns: 'repeat(2, 1fr)',
-                        gap: '1rem',
-                        paddingTop: '1rem',
-                        marginTop: '1rem',
-                        borderTop: '1px solid #374151'
+                        gap: '0.5rem',
+                        paddingTop: '0.5rem',
+                        marginTop: '0.5rem',
+                        borderTop: '0.5px solid #374151'
                     }}>
                         <div>
                             <p style={{ color: '#9ca3af' }}>Humidity</p>
