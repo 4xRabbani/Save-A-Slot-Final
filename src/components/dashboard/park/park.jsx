@@ -3,7 +3,7 @@ import { getAuth } from 'firebase/auth';
 import { collection, getDocs, doc, runTransaction } from 'firebase/firestore';
 import { db } from '../../../firebase/firebase';
 import { toast } from 'react-toastify';
-import { Car } from 'lucide-react';
+import { Car, ArrowLeft } from 'lucide-react';
 
 function Park() {
   const [parkingSlots, setParkingSlots] = useState([]);
@@ -23,6 +23,16 @@ function Park() {
 
         if (!reservationStartTime || !reservationEndTime) {
           toast.error('No reservation time found');
+          setLoading(false);
+          return;
+        }
+
+        // Check if reservation spans multiple days
+        const startDate = new Date(reservationStartTime);
+        const endDate = new Date(reservationEndTime);
+
+        if (startDate.toDateString() !== endDate.toDateString()) {
+          toast.error('Reservations must start and end on the same day');
           setLoading(false);
           return;
         }
@@ -74,6 +84,18 @@ function Park() {
       const reservationEndTime = localStorage.getItem('reservationEndTime');
       const parkingLot = localStorage.getItem('parkingLot');
 
+      // Validate same-day reservation
+      const startDate = new Date(reservationStartTime);
+      const endDate = new Date(reservationEndTime);
+
+      if (startDate.toDateString() !== endDate.toDateString()) {
+        window.location.replace("/time");
+        toast.error('Reservations must start and end on the same day', {
+          position: "bottom-center"
+        });
+        return;
+      }
+
       await runTransaction(db, async (transaction) => {
         const reservationsCollection = collection(db, 'Reservations');
         const reservationsSnapshot = await getDocs(reservationsCollection);
@@ -124,6 +146,10 @@ function Park() {
     }
   };
 
+  const handleBack = () => {
+    window.location.replace("/dashboard/time");
+  };
+
   if (loading) {
     return (
         <div className="flex justify-center items-center min-h-screen">
@@ -132,7 +158,6 @@ function Park() {
     );
   }
 
-  // Remove duplicate slots and sort them properly
   const uniqueSlots = Array.from(new Set(parkingSlots.map(slot => slot.id)))
       .map(id => parkingSlots.find(slot => slot.id === id))
       .sort((a, b) => {
@@ -141,7 +166,6 @@ function Park() {
         return numA - numB;
       });
 
-  // Split slots into two rows
   const topRow = uniqueSlots.filter(slot => {
     const num = parseInt(slot.id.replace('Slot', ''));
     return num <= 9;
@@ -155,7 +179,15 @@ function Park() {
   return (
       <div className="min-h-screen bg-white p-4 md:p-8">
         <div className="max-w-6xl mx-auto">
-          {/* Legend */}
+          {/* Back Button */}
+          <button
+              onClick={handleBack}
+              className="mb-6 flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"
+          >
+            <ArrowLeft size={20} />
+            <span>Back to Time Selection</span>
+          </button>
+
           <div className="mb-6 flex flex-wrap gap-4 justify-center md:justify-start">
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-blue-500 rounded"></div>
@@ -171,10 +203,8 @@ function Park() {
             </div>
           </div>
 
-          {/* Parking Layout Container - Scrollable on mobile */}
           <div className="overflow-x-auto pb-4">
-            <div className="min-w-[640px]"> {/* Minimum width to prevent squishing */}
-              {/* Top row */}
+            <div className="min-w-[640px]">
               <div className="grid grid-cols-9 gap-2 md:gap-4 mb-4">
                 {topRow.map((slot) => (
                     <button
@@ -198,12 +228,10 @@ function Park() {
                 ))}
               </div>
 
-              {/* Driving lane */}
               <div className="text-center py-2 md:py-4 mb-4 bg-gray-100 rounded-lg text-sm md:text-base">
                 DRIVING LANE
               </div>
 
-              {/* Bottom row */}
               <div className="grid grid-cols-9 gap-2 md:gap-4">
                 {bottomRow.map((slot) => (
                     <button
@@ -229,7 +257,6 @@ function Park() {
             </div>
           </div>
 
-          {/* Selected slot info */}
           {selectedSlot && (
               <div className="mt-6 md:mt-8 text-center">
                 <div className="text-base md:text-lg mb-2">
