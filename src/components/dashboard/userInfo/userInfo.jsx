@@ -363,11 +363,8 @@ const UserInfo = () => {
 
                 {/* Reservations Title */}
                 <div className="d-flex align-items-center mb-4">
-                  
-                      <i className="bi bi-calendar-check me-2 text-white"></i>
-                    <u style= {{color: 'white'}}>
-                      <h2 className="text-white m-0">Your Reservations</h2>
-                    </u>
+                    <i className="bi bi-calendar-check me-2 text-white"></i>
+                    <h2 className="text-white m-0">Your Reservations</h2>
                 </div>
 
                 {/* Current Reservations */}
