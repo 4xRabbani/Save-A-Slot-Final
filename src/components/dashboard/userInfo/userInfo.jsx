@@ -1,7 +1,7 @@
-import { Link } from "react-router-dom";
+import {Link, useNavigate} from "react-router-dom";
 import { useEffect, useState } from "react";
 import { auth, db } from "../../../firebase/firebase";
-import { Search } from "lucide-react";
+import { Search, ChevronDown, ChevronUp, Calendar, Clock, MapPin } from "lucide-react";
 import {
   getDoc,
   getDocs,
@@ -10,14 +10,19 @@ import {
   collection,
   query,
 } from "firebase/firestore";
+import WeatherWidget from './WeatherWidget';
+import {Button} from "react-bootstrap";
 
 const UserInfo = () => {
   const [userDetails, setUserDetails] = useState(null);
   const [carDetails, setCarDetails] = useState(null);
   const [currentResDetails, setCurrentResDetails] = useState([]);
   const [pastResDetails, setPastResDetails] = useState([]);
+  const [archivedResDetails, setArchivedResDetails] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterOption, setFilterOption] = useState("all");
+  const [isArchiveExpanded, setIsArchiveExpanded] = useState(false);
+  const navigate = useNavigate();
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -29,7 +34,52 @@ const UserInfo = () => {
       minute: '2-digit',
       hour12: true
     });
-  }
+  };
+
+  const formatDateForSearch = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    }).toLowerCase();
+  };
+
+  const filterReservations = (reservations) => {
+    if (!searchTerm.trim()) return reservations;
+
+    const searchLower = searchTerm.toLowerCase();
+
+    const isDateMatch = (dateStr) => {
+      const formattedDate = formatDateForSearch(dateStr);
+      const searchDate = searchLower.replace(/[/.-]/g, '');
+
+      return (
+          formattedDate.includes(searchLower) ||
+          dateStr.toLowerCase().includes(searchLower) ||
+          formattedDate.replace(/[/.-]/g, '').includes(searchDate)
+      );
+    };
+
+    const isSlotMatch = (slotInfo) => {
+      const slotLower = slotInfo.toLowerCase();
+      return (
+          slotLower.includes(searchLower) ||
+          slotLower.replace(/[- ]/g, '').includes(searchLower.replace(/[- ]/g, ''))
+      );
+    };
+
+    return reservations.filter(reservation => {
+      return (
+          reservation.parkingLot.toLowerCase().includes(searchLower) ||
+          isSlotMatch(reservation.slotID) ||
+          isDateMatch(reservation.reservationStartTime) ||
+          isDateMatch(reservation.reservationEndTime) ||
+          formatDate(reservation.reservationStartTime).toLowerCase().includes(searchLower) ||
+          formatDate(reservation.reservationEndTime).toLowerCase().includes(searchLower)
+      );
+    });
+  };
 
   const fetchUserDetails = async () => {
     auth.onAuthStateChanged(async (user) => {
@@ -69,36 +119,30 @@ const UserInfo = () => {
         if (!resSnap.empty) {
           const allReservations = resSnap.docs.map((doc) => doc.data());
 
-          // Separate current and past reservations
           const now = new Date();
+          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
           const current = [];
           const past = [];
+          const archived = [];
 
           allReservations.forEach(reservation => {
             const endTime = new Date(reservation.reservationEndTime);
-            if (endTime < now) {
+            if (endTime > now) {
+              current.push(reservation);
+            } else if (endTime > weekAgo) {
               past.push(reservation);
             } else {
-              current.push(reservation);
+              archived.push(reservation);
             }
           });
 
-          // Sort current reservations by closest to now
-          current.sort((a, b) => {
-            const timeA = new Date(a.reservationStartTime);
-            const timeB = new Date(b.reservationStartTime);
-            return timeA - timeB;
-          });
-
-          // Sort past reservations by most recent first
-          past.sort((a, b) => {
-            const timeA = new Date(a.reservationEndTime);
-            const timeB = new Date(b.reservationEndTime);
-            return timeB - timeA;
-          });
+          current.sort((a, b) => new Date(a.reservationStartTime) - new Date(b.reservationStartTime));
+          past.sort((a, b) => new Date(b.reservationEndTime) - new Date(a.reservationEndTime));
+          archived.sort((a, b) => new Date(b.reservationEndTime) - new Date(a.reservationEndTime));
 
           setCurrentResDetails(current);
           setPastResDetails(past);
+          setArchivedResDetails(archived);
         }
       } else {
         console.log("No user signed in!");
@@ -107,239 +151,360 @@ const UserInfo = () => {
     });
   };
 
+    const formatReservationDateTime = (dateString) => {
+        const date = new Date(dateString);
+        const dayOfWeek = date.toLocaleString('en-US', { weekday: 'short' }); // 'Mon', 'Tue', etc.
+        const time = date.toLocaleString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
+        return `${dayOfWeek} ${time}`;
+    };
+
+    const getActiveReservation = () => {
+        if (!currentResDetails.length) return null;
+
+        const now = new Date();
+        const activeRes = currentResDetails.find(res => {
+            const startTime = new Date(res.reservationStartTime);
+            const endTime = new Date(res.reservationEndTime);
+            return startTime <= now && endTime >= now;
+        });
+
+        if (activeRes) {
+            return {
+                startTime: formatReservationDateTime(activeRes.reservationStartTime),
+                endTime: formatReservationDateTime(activeRes.reservationEndTime),
+                location: activeRes.parkingLot,
+                slot: activeRes.slotID
+            };
+        }
+
+        // If no active reservation, return the next upcoming one
+        const nextRes = currentResDetails[0];
+        if (nextRes) {
+            return {
+                startTime: formatReservationDateTime(nextRes.reservationStartTime),
+                endTime: formatReservationDateTime(nextRes.reservationEndTime),
+                location: nextRes.parkingLot,
+                slot: nextRes.slotID,
+                isUpcoming: true
+            };
+        }
+
+        return null;
+    };
+
   useEffect(() => {
     fetchUserDetails();
   }, []);
 
-  const filterReservations = (reservations) => {
-    return reservations.filter(reservation => {
-      const searchFields = [
-        reservation.parkingLot,
-        reservation.slotID,
-        formatDate(reservation.reservationStartTime),
-        formatDate(reservation.reservationEndTime)
-      ].map(field => field.toLowerCase());
-
-      return searchFields.some(field => field.includes(searchTerm.toLowerCase()));
-    });
-  };
-
-  const ReservationList = ({reservations, title, isPast = false}) => {
-    const filteredReservations = filterReservations(reservations);
+    const activeReservation = getActiveReservation();
+    const handleReservationClick = () => {
+        const reservationsSection = document.getElementById('reservations-section');
+        if (reservationsSection) {
+            reservationsSection.scrollIntoView({ behavior: 'smooth' });
+        }
+    };
 
     return (
-        <div className={`mt-6 ${isPast ? 'opacity-75' : ''}`}>
-          <h3 className="text-xl font-bold mb-4">{title}:</h3>
-          {filteredReservations.length > 0 ? (
-              filteredReservations.map((reservation, index) => (
-                  <div
-                      key={index}
-                      className={`mb-4 p-4 rounded-lg ${
-                          isPast
-                              ? 'bg-gray-700 border-gray-600'
-                              : 'bg-blue-900 border-blue-700'
-                      } border`}
-                  >
-                    <p className="font-bold text-lg mb-2">Reservation {index + 1}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <p className="text-gray-300">Start Time:</p>
-                        <p className="font-medium">{formatDate(reservation.reservationStartTime)}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-300">End Time:</p>
-                        <p className="font-medium">{formatDate(reservation.reservationEndTime)}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-300">Parking Lot:</p>
-                        <p className="font-medium">{reservation.parkingLot || "Not specified"}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-300">Parking Slot:</p>
-                        <p className="font-medium">{reservation.slotID || "Not specified"}</p>
-                      </div>
-                    </div>
-                  </div>
-              ))
-          ) : (
-              <p className="text-gray-400">No {title.toLowerCase()} found.</p>
-          )}
-        </div>
-    );
-  };
+        <div className="container py-1">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 my-2">
+                <h1 className="text-2xl sm:text-3xl font-bold">
+                    Welcome, {userDetails?.firstName}!
+                </h1>
 
-  return (
-      <div className="container jumbotron-fluid py-2">
-        <h1 className="text-md-left font-weight-bold my-5">
-          Welcome, {userDetails?.firstName}!
-        </h1>
-        <div className="container">
-          {/* User Info Box */}
-          <div className="container box text-white">
-            <p>
-              <i className="bi bi-person-circle me-2"></i>
-              Surname: {userDetails?.lastName}
-            </p>
-            <p>
-              <i className="bi bi-envelope me-2"></i>
-              Your email: {userDetails?.email}
-            </p>
-            <p className="font-weight-bold">
-              <i className="bi bi-car-front me-2"></i>
-              Your Vehicle:
-            </p>
-            <p className="ms-4">Make: {carDetails?.carMake || "Not specified"}</p>
-            <p className="ms-4">Model: {carDetails?.carModel || "Not specified"}</p>
-            <p className="ms-4">Year: {carDetails?.carYear || "Not specified"}</p>
+                {activeReservation ? (
+                    <Button
+                        variant="outline"
+                        onClick={handleReservationClick}
+                        className="bg-slate-700 text-white hover:bg-slate-600 px-4 sm:px-6 py-2 rounded-full relative w-full sm:w-auto border-0"
+                    >
+                        <div className="flex items-center gap-2 sm:gap-3 justify-center sm:justify-start">
+                            <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse mt-[1px]" />
+                            <span className="text-sm sm:text-base whitespace-nowrap">
+                Active : {activeReservation.startTime} - {activeReservation.slot}
+              </span>
+                        </div>
+                    </Button>
+                ) : (
+                    <Button
+                        variant="outline"
+                        className="bg-slate-800 text-white hover:bg-slate-700 rounded-full px-6 sm:px-8 py-3 text-sm sm:text-base w-full sm:w-auto border-0"
+                    >
+                        No Active Reservations
+                    </Button>
+                )}
+            </div>
+
+
+            {/* Shared Card Container */}
+            <div style={{
+                padding: '1.5rem',
+                backgroundColor: '#1e293b',
+                borderRadius: '0.5rem',
+                color: 'white',
+                width: '100%',
+                marginBottom: '1rem'
+            }}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Left Column: User & Vehicle Info */}
+                    <div>
+                        <div className="mb-6">
+                            <h3 style={{
+                                fontSize: '1.25rem',
+                                fontWeight: '600',
+                                marginBottom: '1rem',
+                                display: 'flex',
+                                alignItems: 'center'
+                            }}>
+                                <u><i className="bi bi-person-circle me-2"></i>
+                                    Personal Information</u>
+                            </h3>
+                            <div style={{marginLeft: '1.75rem'}}>
+                                <p>First Name: {userDetails?.firstName}</p>
+                                <p>Last Name: {userDetails?.lastName}</p>
+                                <p>Email Address: {userDetails?.email}</p>
+                            </div>
+                        </div>
+
+                        <div>
+                        <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem', display: 'flex', alignItems: 'center' }}>
+                              <u><i className="bi bi-car-front me-2"></i>
+                              Your Vehicle</u>
+                          </h3>
+                          <div style={{ marginLeft: '1.75rem' }}>
+                              <p>Make: {carDetails?.carMake || "Not specified"}</p>
+                              <p>Model: {carDetails?.carModel || "Not specified"}</p>
+                              <p>Year: {carDetails?.carYear || "Not specified"}</p>
+                          </div>
+                      </div>
+                  </div>
+
+                  {/* Right Column: Weather Widget */}
+                  <div>
+                      <WeatherWidget />
+                  </div>
+              </div>
           </div>
 
           {/* Reservation Button */}
-          <div className="text-center">
-            <Link to={"/dashboard/time"}>
-              <button className="btn btn-primary btn-lg my-4">
-                <i className="bi bi-car-front me-2"></i>
-                Make a Reservation
+          <Link to="/dashboard/time" className="block mb-6">
+              <button style={{
+                  width: '100%',
+                  backgroundColor: '#2563eb',
+                  color: 'white',
+                  fontWeight: 'bold',
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '0.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+              }}>
+                  <i className="bi bi-car-front me-2"></i>
+                  Make a Reservation
               </button>
-            </Link>
-          </div>
+          </Link>
 
           {/* Reservations Section */}
-          <div className="container p-4" style={{backgroundColor: '#1B2641', borderRadius: '12px'}}>
-            {/* Search and Filter */}
-            <div className="d-flex align-items-center gap-3 pb-4" style={{ backgroundColor: '#1B2641', padding: '20px' }}>
-              {/* Search area with external icon */}
-              <i className="bi bi-search"
-                 style={{
-                   color: '#6B7280',
-                   fontSize: '20px',
-                   marginRight: '-40px',
-                   zIndex: '1'
-                 }}
-              ></i>
-
-              {/* Search Input */}
-              <input
-                  type="text"
-                  placeholder="Search reservations..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  style={{
-                    flex: '1',
-                    minWidth: '150px',
-                    padding: '12px 20px 12px 50px',
-                    fontSize: '16px',
-                    backgroundColor: '#fff',
-                    border: 'none',
-                    borderRadius: '12px',
-                    color: '#6B7280'
-                  }}
-              />
-
-              {/* Filter Dropdown */}
-              <select
-                  value={filterOption}
-                  onChange={(e) => setFilterOption(e.target.value)}
-                  style={{
-                    maxWidth: '200px',
-                    padding: '12px 40px 12px 20px',
-                    fontSize: '16px',
-                    backgroundColor: 'rgba(44, 52, 68, 0.8)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '12px',
-                    appearance: 'none',
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
-                    backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'right 15px center',
-                    backgroundSize: '16px'
-                  }}
-              >
-                <option value="all">All Reservations</option>
-                <option value="current">Current Only</option>
-                <option value="past">Past Only</option>
-              </select>
-            </div>
-
-            {/* Reservations Title */}
-            <div className="d-flex align-items-center mb-4">
-              <i className="bi bi-calendar-check me-2 text-white"></i>
-              <h2 className="text-white m-0">Your Reservations</h2>
-            </div>
-
-            {/* Current Reservations */}
-            {filterOption !== 'past' && (
-                <div className="mb-4">
-                  <h3 className="text-white mb-3">Current & Upcoming Reservations:</h3>
-                  {currentResDetails.length > 0 ? (
-                      currentResDetails.map((reservation, index) => (
-                          <div key={index}
-                               className="mb-3 p-4"
-                               style={{backgroundColor: '#0077FF', borderRadius: '8px', color: 'white'}}>
-                            <h4>Reservation {index + 1}</h4>
-                            <div className="row g-3">
-                              <div className="col-md-6">
-                                <i className="bi bi-clock me-2"></i>
-                                Start: {formatDate(reservation.reservationStartTime)}
-                              </div>
-                              <div className="col-md-6">
-                                <i className="bi bi-clock-fill me-2"></i>
-                                End: {formatDate(reservation.reservationEndTime)}
-                              </div>
-                              <div className="col-md-6">
-                                <i className="bi bi-geo-alt me-2"></i>
-                                Location: {reservation.parkingLot || "Not specified"}
-                              </div>
-                              <div className="col-md-6">
-                                <i className="bi bi-p-square me-2"></i>
-                                Slot: {reservation.slotID || "Not specified"}
-                              </div>
-                            </div>
-                          </div>
-                      ))
-                  ) : (
-                      <p className="text-white-50">No current reservations found.</p>
-                  )}
+            <div id="reservations-section" className="container p-4"
+                 style={{backgroundColor: '#1B2641', borderRadius: '12px'}}>
+                {/* Search and Filter */}
+                <div className="d-flex align-items-center gap-3 pb-4"
+                     style={{backgroundColor: '#1B2641', padding: '20px'}}>
+                    <i className="bi bi-search"
+                       style={{
+                           color: '#6B7280',
+                           fontSize: '20px',
+                           marginRight: '-40px',
+                           zIndex: '1'
+                       }}
+                    ></i>
+                    <input
+                        type="text"
+                        placeholder="Search by date, slot, or location"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        style={{
+                            flex: '1',
+                            minWidth: '150px',
+                            padding: '12px 20px 12px 50px',
+                            fontSize: '16px',
+                            backgroundColor: '#fff',
+                            border: 'none',
+                            borderRadius: '12px',
+                            color: '#6B7280'
+                        }}
+                    />
+                    <select
+                        value={filterOption}
+                        onChange={(e) => setFilterOption(e.target.value)}
+                        style={{
+                            maxWidth: '200px',
+                            padding: '12px 40px 12px 20px',
+                            fontSize: '16px',
+                            backgroundColor: 'rgba(44, 52, 68, 0.8)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '12px',
+                            appearance: 'none',
+                            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
+                            backgroundRepeat: 'no-repeat',
+                            backgroundPosition: 'right 15px center',
+                            backgroundSize: '16px'
+                        }}
+                    >
+                        <option value="all">All Reservations</option>
+                        <option value="current">Current Only</option>
+                        <option value="past">Past Only</option>
+                    </select>
                 </div>
-            )}
 
-            {/* Past Reservations */}
-            {filterOption !== 'current' && (
-                <div>
-                  <h3 className="text-white mb-3">Past Reservations:</h3>
-                  {pastResDetails.length > 0 ? (
-                      pastResDetails.map((reservation, index) => (
-                          <div key={index}
-                               className="mb-3 p-4"
-                               style={{backgroundColor: '#4a5568', borderRadius: '8px', color: 'white'}}>
-                            <h4>Reservation {index + 1}</h4>
-                            <div className="row g-3">
-                              <div className="col-md-6">
-                                <i className="bi bi-clock me-2"></i>
-                                Start: {formatDate(reservation.reservationStartTime)}
-                              </div>
-                              <div className="col-md-6">
-                                <i className="bi bi-clock-fill me-2"></i>
-                                End: {formatDate(reservation.reservationEndTime)}
-                              </div>
-                              <div className="col-md-6">
-                                <i className="bi bi-geo-alt me-2"></i>
-                                Location: {reservation.parkingLot || "Not specified"}
-                              </div>
-                              <div className="col-md-6">
-                                <i className="bi bi-p-square me-2"></i>
-                                Slot: {reservation.slotID || "Not specified"}
-                              </div>
-                            </div>
-                          </div>
-                      ))
-                  ) : (
-                      <p className="text-white-50">No past reservations found.</p>
-                  )}
+                {/* Reservations Title */}
+                <div className="d-flex align-items-center mb-4">
+                    <i className="bi bi-calendar-check me-2 text-white"></i>
+                    <h2 className="text-white m-0">Your Reservations</h2>
                 </div>
-            )}
-          </div>
+
+                {/* Current Reservations */}
+                {filterOption !== 'past' && (
+                    <div className="mb-4">
+                        <h3 className="text-white mb-3">Current & Upcoming Reservations:</h3>
+                        {filterReservations(currentResDetails).length > 0 ? (
+                            filterReservations(currentResDetails).map((reservation, index) => (
+                                <div key={index}
+                                     className="mb-3 p-4"
+                                     style={{backgroundColor: '#0077FF', borderRadius: '8px', color: 'white'}}>
+                                    {/*<h4>Reservation {index + 1}</h4>*/}
+                                    <div className="row g-3">
+                                        <div className="col-md-6">
+                                            <h4><i className="bi bi-clock me-2"></i>
+                                                Start: {formatDate(reservation.reservationStartTime)}</h4>
+                                        </div>
+                                        <div className="col-md-6">
+                                            <i className="bi bi-clock-fill me-2"></i>
+                                            End: {formatDate(reservation.reservationEndTime)}
+                                        </div>
+                                        <div className="col-md-6">
+                                            <i className="bi bi-geo-alt me-2"></i>
+                                            Location: {reservation.parkingLot || "Not specified"}
+                                        </div>
+                                        <div className="col-md-6">
+                                            <i className="bi bi-p-square me-2"></i>
+                                            Slot: {reservation.slotID || "Not specified"}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-white-50">
+                                {searchTerm ? "No matching current reservations found." : "No current reservations found."}
+                            </p>
+                        )}
+                    </div>
+                )}
+
+                {/* Past Reservations */}
+                {filterOption !== 'current' && (
+                    <div className="mb-4">
+                        <h3 className="text-white mb-3">Past Reservations:</h3>
+                        {filterReservations(pastResDetails).length > 0 ? (
+                            filterReservations(pastResDetails).map((reservation, index) => (
+                                <div key={index}
+                                     className="mb-3 p-4"
+                                     style={{backgroundColor: '#4a5568', borderRadius: '8px', color: 'white'}}>
+                                    {/*<h4>Reservation {index + 1}</h4>*/}
+                                    <div className="row g-3">
+                                        <div className="col-md-6">
+                                            <i className="bi bi-clock me-2"></i>
+                                            Start: {formatDate(reservation.reservationStartTime)}
+                                        </div>
+                                        <div className="col-md-6">
+                                            <i className="bi bi-clock-fill me-2"></i>
+                                            End: {formatDate(reservation.reservationEndTime)}
+                                        </div>
+                                        <div className="col-md-6">
+                                            <i className="bi bi-geo-alt me-2"></i>
+                                            Location: {reservation.parkingLot || "Not specified"}
+                                        </div>
+                                        <div className="col-md-6">
+                                            <i className="bi bi-p-square me-2"></i>
+                                            Slot: {reservation.slotID || "Not specified"}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-white-50">
+                                {searchTerm ? "No matching past reservations found." : "No past reservations found."}
+                            </p>
+                        )}
+                    </div>
+                )}
+
+                {/* Archived Reservations */}
+                {filterOption !== 'current' && (
+                    <div className="mt-4">
+                        <button
+                            onClick={() => setIsArchiveExpanded(!isArchiveExpanded)}
+                            className="w-100 d-flex justify-content-between align-items-center p-3"
+                            style={{
+                                backgroundColor: '#2d3748',
+                                border: 'none',
+                                borderRadius: '8px',
+                                color: 'white',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            <span className="fw-bold">Archived Reservations (Older than 1 week)</span>
+                            <i className={`bi bi-chevron-${isArchiveExpanded ? 'up' : 'down'}`}></i>
+                        </button>
+
+                        {isArchiveExpanded && (
+                            <div className="mt-3">
+                                {filterReservations(archivedResDetails).length > 0 ? (
+                                    filterReservations(archivedResDetails).map((reservation, index) => (
+                                        <div key={index}
+                                             className="mb-3 p-4"
+                                             style={{
+                                                 backgroundColor: '#2d3748',
+                                                 borderRadius: '8px',
+                                                 color: 'white'
+                                             }}>
+                                            {/*<h4>Reservation {index + 1}</h4>*/}
+                                            <div className="row g-3">
+                                                <div className="col-md-6">
+                                                    <i className="bi bi-clock me-2"></i>
+                                                    Start: {formatDate(reservation.reservationStartTime)}
+                                                </div>
+                                                <div className="col-md-6">
+                                                    <i className="bi bi-clock-fill me-2"></i>
+                                                    End: {formatDate(reservation.reservationEndTime)}
+                                                </div>
+                                                <div className="col-md-6">
+                                                    <i className="bi bi-geo-alt me-2"></i>
+                                                    Location: {reservation.parkingLot || "Not specified"}
+                                                </div>
+                                                <div className="col-md-6">
+                                                    <i className="bi bi-p-square me-2"></i>
+                                                    Slot: {reservation.slotID || "Not specified"}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-white-50 mt-3">
+                                        {searchTerm ? "No matching archived reservations found." : "No archived reservations found."}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
         </div>
-      </div>
-  );
-}
+    );
+};
+
 export default UserInfo;
