@@ -1,168 +1,211 @@
-import {Link, useNavigate} from "react-router-dom";
-import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { auth, db } from "../../../firebase/firebase";
-import { Search, ChevronDown, ChevronUp, Calendar, Clock, MapPin } from "lucide-react";
+import { Dropdown } from 'react-bootstrap';
+import { Search, ChevronDown, ChevronUp, Calendar, Clock, MapPin, LogOut, Edit, Settings } from "lucide-react";
 import {
-  getDoc,
-  getDocs,
-  doc,
-  where,
-  collection,
-  query,
+    getDoc,
+    getDocs,
+    doc,
+    where,
+    collection,
+    query,
+    updateDoc,
 } from "firebase/firestore";
 import WeatherWidget from './WeatherWidget';
-import {Button} from "react-bootstrap";
+import { Button } from "react-bootstrap";
+import { signOut } from "firebase/auth";
+import "./userInfo.css"
+import Papa from 'papaparse';
 
 const UserInfo = () => {
-  const [userDetails, setUserDetails] = useState(null);
-  const [carDetails, setCarDetails] = useState(null);
-  const [currentResDetails, setCurrentResDetails] = useState([]);
-  const [pastResDetails, setPastResDetails] = useState([]);
-  const [archivedResDetails, setArchivedResDetails] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterOption, setFilterOption] = useState("all");
-  const [isArchiveExpanded, setIsArchiveExpanded] = useState(false);
-  const navigate = useNavigate();
+    const [userDetails, setUserDetails] = useState(null);
+    const [carDetails, setCarDetails] = useState(null);
+    const [currentResDetails, setCurrentResDetails] = useState([]);
+    const [pastResDetails, setPastResDetails] = useState([]);
+    const [archivedResDetails, setArchivedResDetails] = useState([]);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [filterOption, setFilterOption] = useState("all");
+    const [isArchiveExpanded, setIsArchiveExpanded] = useState(false);
+    const [isEditingProfile, setIsEditingProfile] = useState(false);
+    const [isEditingVehicle, setIsEditingVehicle] = useState(false);
+    const [showDropdown, setShowDropdown] = useState(false);
+    const dropdownRef = useRef(null);
+    const navigate = useNavigate();
+    const [loading, setLoading] = useState(false);
+    const [makes, setMakes] = useState([]);
+    const [models, setModels] = useState([]);
+    const [yearData, setYearData] = useState(null);
+    const currentYear = new Date().getFullYear();
+    const years = Array.from(new Array(currentYear - 1991), (val, index) => currentYear - index);
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
+    const [editedProfile, setEditedProfile] = useState({
+        firstName: '',
+        lastName: '',
+        email: ''
     });
-  };
 
-  const formatDateForSearch = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    }).toLowerCase();
-  };
-
-  const filterReservations = (reservations) => {
-    if (!searchTerm.trim()) return reservations;
-
-    const searchLower = searchTerm.toLowerCase();
-
-    const isDateMatch = (dateStr) => {
-      const formattedDate = formatDateForSearch(dateStr);
-      const searchDate = searchLower.replace(/[/.-]/g, '');
-
-      return (
-          formattedDate.includes(searchLower) ||
-          dateStr.toLowerCase().includes(searchLower) ||
-          formattedDate.replace(/[/.-]/g, '').includes(searchDate)
-      );
-    };
-
-    const isSlotMatch = (slotInfo) => {
-      const slotLower = slotInfo.toLowerCase();
-      return (
-          slotLower.includes(searchLower) ||
-          slotLower.replace(/[- ]/g, '').includes(searchLower.replace(/[- ]/g, ''))
-      );
-    };
-
-    return reservations.filter(reservation => {
-      return (
-          reservation.parkingLot.toLowerCase().includes(searchLower) ||
-          isSlotMatch(reservation.slotID) ||
-          isDateMatch(reservation.reservationStartTime) ||
-          isDateMatch(reservation.reservationEndTime) ||
-          formatDate(reservation.reservationStartTime).toLowerCase().includes(searchLower) ||
-          formatDate(reservation.reservationEndTime).toLowerCase().includes(searchLower)
-      );
+    const [editedVehicle, setEditedVehicle] = useState({
+        carMake: '',
+        carModel: '',
+        carYear: ''
     });
-  };
 
-  const fetchUserDetails = async () => {
-    auth.onAuthStateChanged(async (user) => {
-      if (user) {
-        console.log("Current User:", user);
-
-        // Get the user information
-        const docRef = doc(db, "Users", user.uid);
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-          setUserDetails(docSnap.data());
-        } else {
-          console.log("No such document!");
-        }
-
-        const userDocRef = doc(db, "Users", user.uid);
-
-        //Get the Car details
-        const docRef1 = collection(db, "Vehicles");
-        const carInfo = query(docRef1, where("userRef", "==", userDocRef));
-        const docSnap1 = await getDocs(carInfo);
-
-        if (!docSnap1.empty) {
-          const carData = docSnap1.docs[0].data();
-          setCarDetails(carData);
-        }
-
-        //Showing the reservation of user
-        const reservation = collection(db, "Reservations");
-        const reservationSnap = query(
-            reservation,
-            where("userRef", "==", userDocRef)
-        );
-        const resSnap = await getDocs(reservationSnap);
-
-        if (!resSnap.empty) {
-          const allReservations = resSnap.docs.map((doc) => doc.data());
-
-          const now = new Date();
-          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          const current = [];
-          const past = [];
-          const archived = [];
-
-          allReservations.forEach(reservation => {
-            const endTime = new Date(reservation.reservationEndTime);
-            if (endTime > now) {
-              current.push(reservation);
-            } else if (endTime > weekAgo) {
-              past.push(reservation);
-            } else {
-              archived.push(reservation);
+    // Format date for display
+    const formatDate = useCallback((dateString) => {
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) {
+                throw new Error('Invalid date');
             }
-          });
-
-          current.sort((a, b) => new Date(a.reservationStartTime) - new Date(b.reservationStartTime));
-          past.sort((a, b) => new Date(b.reservationEndTime) - new Date(a.reservationEndTime));
-          archived.sort((a, b) => new Date(b.reservationEndTime) - new Date(a.reservationEndTime));
-
-          setCurrentResDetails(current);
-          setPastResDetails(past);
-          setArchivedResDetails(archived);
+            return date.toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
+        } catch (error) {
+            console.error(`Error formatting date: ${dateString}`, error);
+            return 'Invalid date';
         }
-      } else {
-        console.log("No user signed in!");
-        window.location.replace("/");
-      }
-    });
-  };
+    }, []);
 
-    const formatReservationDateTime = (dateString) => {
-        const date = new Date(dateString);
-        const dayOfWeek = date.toLocaleString('en-US', { weekday: 'short' }); // 'Mon', 'Tue', etc.
-        const time = date.toLocaleString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-        });
-        return `${dayOfWeek} ${time}`;
+    // Format date for search functionality
+    const formatDateForSearch = useCallback((dateString) => {
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) {
+                throw new Error('Invalid date');
+            }
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+            }).toLowerCase();
+        } catch (error) {
+            console.error(`Error formatting date for search: ${dateString}`, error);
+            return '';
+        }
+    }, []);
+
+    // Filter reservations based on search term
+    const filterReservations = useCallback((reservations) => {
+        if (!searchTerm.trim()) return reservations;
+
+        const searchLower = searchTerm.toLowerCase();
+
+        const isDateMatch = (dateStr) => {
+            const formattedDate = formatDateForSearch(dateStr);
+            const searchDate = searchLower.replace(/[/.-]/g, '');
+
+            return (
+                formattedDate.includes(searchLower) ||
+                dateStr.toLowerCase().includes(searchLower) ||
+                formattedDate.replace(/[/.-]/g, '').includes(searchDate)
+            );
+        };
+
+        const isSlotMatch = (slotInfo) => {
+            const slotLower = slotInfo.toLowerCase();
+            return (
+                slotLower.includes(searchLower) ||
+                slotLower.replace(/[- ]/g, '').includes(searchLower.replace(/[- ]/g, ''))
+            );
+        };
+
+        return reservations.filter(reservation => (
+            reservation.parkingLot.toLowerCase().includes(searchLower) ||
+            isSlotMatch(reservation.slotID) ||
+            isDateMatch(reservation.reservationStartTime) ||
+            isDateMatch(reservation.reservationEndTime) ||
+            formatDate(reservation.reservationStartTime).toLowerCase().includes(searchLower) ||
+            formatDate(reservation.reservationEndTime).toLowerCase().includes(searchLower)
+        ));
+    }, [searchTerm, formatDate, formatDateForSearch]);
+
+    // Categorize reservations into current, past, and archived
+    const categorizeReservations = useCallback((reservations) => {
+        const now = new Date();
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+        const categorized = reservations.reduce((acc, reservation) => {
+            const endTime = new Date(reservation.reservationEndTime);
+
+            if (endTime > now) {
+                acc.current.push(reservation);
+            } else if (endTime > weekAgo) {
+                acc.past.push(reservation);
+            } else {
+                acc.archived.push(reservation);
+            }
+            return acc;
+        }, { current: [], past: [], archived: [] });
+
+        // Sort all categories
+        const sortByDate = (a, b) => new Date(a.reservationStartTime) - new Date(b.reservationStartTime);
+        categorized.current.sort(sortByDate);
+        categorized.past.sort((a, b) => new Date(b.reservationEndTime) - new Date(a.reservationEndTime));
+        categorized.archived.sort((a, b) => new Date(b.reservationEndTime) - new Date(a.reservationEndTime));
+
+        setCurrentResDetails(categorized.current);
+        setPastResDetails(categorized.past);
+        setArchivedResDetails(categorized.archived);
+    }, []);
+
+    // Fetch user details and related data
+    const fetchUserDetails = async (user) => {
+        try {
+            const userDocRef = doc(db, "Users", user.uid);
+
+            // Use Promise.all to fetch data concurrently
+            const [userDoc, vehiclesSnapshot, reservationsSnapshot] = await Promise.all([
+                getDoc(userDocRef),
+                getDocs(query(collection(db, "Vehicles"), where("userRef", "==", userDocRef))),
+                getDocs(query(collection(db, "Reservations"), where("userRef", "==", userDocRef)))
+            ]);
+
+            if (userDoc.exists()) {
+                setUserDetails(userDoc.data());
+            }
+
+            if (!vehiclesSnapshot.empty) {
+                setCarDetails(vehiclesSnapshot.docs[0].data());
+            }
+
+            if (!reservationsSnapshot.empty) {
+                const allReservations = reservationsSnapshot.docs.map(doc => doc.data());
+                categorizeReservations(allReservations);
+            }
+        } catch (error) {
+            console.error("Error fetching data:", error);
+            // Add appropriate error handling/user feedback here
+        }
     };
 
-    const getActiveReservation = () => {
+    // Format reservation date and time
+    const formatReservationDateTime = useCallback((dateString) => {
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) {
+                throw new Error('Invalid date');
+            }
+            const dayOfWeek = date.toLocaleString('en-US', { weekday: 'short' });
+            const time = date.toLocaleString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
+            return `${dayOfWeek} ${time}`;
+        } catch (error) {
+            console.error(`Error formatting reservation datetime: ${dateString}`, error);
+            return 'Invalid date';
+        }
+    }, []);
+
+    // Get active reservation details
+    const getActiveReservation = useCallback(() => {
         if (!currentResDetails.length) return null;
 
         const now = new Date();
@@ -194,13 +237,84 @@ const UserInfo = () => {
         }
 
         return null;
+    }, [currentResDetails, formatReservationDateTime]);
+
+    // Handle profile editing
+    const handleEditProfile = () => {
+        setEditedProfile({
+            firstName: userDetails?.firstName || '',
+            lastName: userDetails?.lastName || '',
+            email: userDetails?.email || ''
+        });
+        setIsEditingProfile(true);
     };
 
-  useEffect(() => {
-    fetchUserDetails();
-  }, []);
+    // Handle vehicle editing
+    const handleEditVehicle = () => {
+        setEditedVehicle({
+            carMake: carDetails?.carMake || '',
+            carModel: carDetails?.carModel || '',
+            carYear: carDetails?.carYear || ''
+        });
+        setIsEditingVehicle(true);
+    };
 
-    const activeReservation = getActiveReservation();
+    // Save profile changes
+    const handleSaveProfile = async () => {
+        try {
+            if (!auth.currentUser) {
+                throw new Error('No authenticated user');
+            }
+
+            const userRef = doc(db, "Users", auth.currentUser.uid);
+            await updateDoc(userRef, editedProfile);
+
+            setUserDetails(prev => ({...prev, ...editedProfile}));
+            setIsEditingProfile(false);
+        } catch (error) {
+            console.error("Error updating profile:", error);
+            // Add appropriate error feedback to user here
+        }
+    };
+
+    // Save vehicle changes
+    const handleSaveVehicle = async () => {
+        try {
+            const vehicleQuery = query(
+                collection(db, "Vehicles"),
+                where("userRef", "==", doc(db, "Users", auth.currentUser.uid))
+            );
+            const vehicleSnapshot = await getDocs(vehicleQuery);
+
+            if (!vehicleSnapshot.empty) {
+                const vehicleDoc = vehicleSnapshot.docs[0];
+                await updateDoc(doc(db, "Vehicles", vehicleDoc.id), {
+                    carMake: editedVehicle.carMake,
+                    carModel: editedVehicle.carModel,
+                    carYear: editedVehicle.carYear
+                });
+                setCarDetails(prev => ({...prev, ...editedVehicle}));
+                toast.success("Vehicle information updated successfully");
+            }
+            setIsEditingVehicle(false);
+        } catch (error) {
+            console.error("Error updating vehicle: ", error);
+            toast.error("Failed to update vehicle information");
+        }
+    };
+
+    // Handle logout
+    const handleLogout = async () => {
+        try {
+            await signOut(auth);
+            navigate('/');
+        } catch (error) {
+            console.error("Error signing out:", error);
+            // Add appropriate error feedback to user here
+        }
+    };
+
+    // Handle reservation click
     const handleReservationClick = () => {
         const reservationsSection = document.getElementById('reservations-section');
         if (reservationsSection) {
@@ -208,12 +322,197 @@ const UserInfo = () => {
         }
     };
 
+    // Set up auth listener and cleanup
+    useEffect(() => {
+        const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                try {
+                    await fetchUserDetails(user);
+                } catch (error) {
+                    console.error("Error fetching user details:", error);
+                    // Add appropriate error handling/user feedback here
+                }
+            } else {
+                navigate('/');
+            }
+        });
+
+        return () => unsubscribeAuth();
+    }, [navigate]);
+
+    // Handle clicks outside dropdown
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setShowDropdown(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const activeReservation = getActiveReservation();
+
+    const fetchCSV = async (filepath) => {
+        try {
+            const response = await fetch(filepath);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch ${filepath}`);
+            }
+            const text = await response.text();
+
+            return new Promise((resolve, reject) => {
+                Papa.parse(text, {
+                    header: true,
+                    complete: (results) => {
+                        resolve(results.data.filter(row => row.make && row.model));
+                    },
+                    error: (error) => {
+                        reject(error);
+                    }
+                });
+            });
+        } catch (error) {
+            throw new Error(`Error fetching CSV: ${error.message}`);
+        }
+    };
+
+// Add these useEffects for handling year and make changes
+    useEffect(() => {
+        const fetchYearData = async () => {
+            if (!editedVehicle.carYear) {
+                setMakes([]);
+                setModels([]);
+                setYearData(null);
+                return;
+            }
+
+            setLoading(true);
+            try {
+                const data = await fetchCSV(`/vehicles/${editedVehicle.carYear}.csv`);
+                setYearData(data);
+
+                const uniqueMakes = [...new Set(data.map(row => row.make))]
+                    .filter(make => make)
+                    .sort()
+                    .map((make, index) => ({
+                        Make_ID: index + 1,
+                        Make_Name: make
+                    }));
+
+                setMakes(uniqueMakes);
+                if (!editedVehicle.carMake) {
+                    setEditedVehicle(prev => ({ ...prev, carModel: '' }));
+                }
+            } catch (error) {
+                console.error('Error fetching year data:', error);
+                toast.error(`Error loading data for year ${editedVehicle.carYear}`);
+                setYearData(null);
+                setMakes([]);
+                setModels([]);
+            }
+            setLoading(false);
+        };
+
+        fetchYearData();
+    }, [editedVehicle.carYear]);
+
+    useEffect(() => {
+        if (!editedVehicle.carMake || !yearData) {
+            setModels([]);
+            return;
+        }
+
+        const filteredModels = yearData
+            .filter(row => row.make === editedVehicle.carMake)
+            .map((row, index) => ({
+                Model_ID: index + 1,
+                Model_Name: row.model
+            }))
+            .filter((model, index, self) =>
+                index === self.findIndex(m => m.Model_Name === model.Model_Name)
+            )
+            .sort((a, b) => a.Model_Name.localeCompare(b.Model_Name));
+
+        setModels(filteredModels);
+        if (!models.find(m => m.Model_Name === editedVehicle.carModel)) {
+            setEditedVehicle(prev => ({ ...prev, carModel: '' }));
+        }
+    }, [editedVehicle.carMake, yearData]);
+
+
+
     return (
         <div className="container py-1">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 my-2">
-                <h1 className="text-2xl sm:text-3xl font-bold">
-                    Welcome, {userDetails?.firstName}!
-                </h1>
+                <div className="flex items-center gap-2">
+                    <h1 className="text-2xl sm:text-3xl font-bold">
+                        Welcome, {userDetails?.firstName}!
+                    </h1>
+
+                    <Dropdown show={showDropdown} onToggle={setShowDropdown} ref={dropdownRef}>
+                        <Dropdown.Toggle
+                            variant="link"
+                            id="account-dropdown"
+                            className="p-0 text-secondary opacity-60"
+                            style={{
+                                border: 'none',
+                                boxShadow: 'none',
+                                background: 'transparent',
+                                marginTop: '-10px',
+                                color: '#6c757d'
+                            }}
+                        >
+                            <Settings size={24} />
+                        </Dropdown.Toggle>
+
+                        <Dropdown.Menu
+                            style={{
+                                backgroundColor: '#1e293b',
+                                border: '1px solid #2d3748',
+                                borderRadius: '0.5rem',
+                                minWidth: '200px',
+                                marginTop: '0.5rem'
+                            }}
+                        >
+                            <Dropdown.Item
+                                onClick={handleEditProfile}
+                                className="text-white d-flex align-items-center gap-2 py-2 px-3"
+                                style={{ backgroundColor: 'transparent', transition: 'background-color 0.2s' }}
+                                onMouseEnter={e => e.target.style.backgroundColor = '#2d3748'}
+                                onMouseLeave={e => e.target.style.backgroundColor = 'transparent'}
+                            >
+                                <i className="bi bi-person-circle"></i>
+                                Edit Profile
+                            </Dropdown.Item>
+
+                            <Dropdown.Item
+                                onClick={handleEditVehicle}
+                                className="text-white d-flex align-items-center gap-2 py-2 px-3"
+                                style={{ backgroundColor: 'transparent', transition: 'background-color 0.2s' }}
+                                onMouseEnter={e => e.target.style.backgroundColor = '#2d3748'}
+                                onMouseLeave={e => e.target.style.backgroundColor = 'transparent'}
+                            >
+                                <i className="bi bi-car-front"></i>
+                                Edit Vehicle
+                            </Dropdown.Item>
+
+                            <Dropdown.Divider style={{ borderColor: '#2d3748' }} />
+
+                            <Dropdown.Item
+                                onClick={handleLogout}
+                                className="text-danger d-flex align-items-center gap-2 py-2 px-3"
+                                style={{ backgroundColor: 'transparent', transition: 'background-color 0.2s' }}
+                                onMouseEnter={e => e.target.style.backgroundColor = '#2d3748'}
+                                onMouseLeave={e => e.target.style.backgroundColor = 'transparent'}
+                            >
+                                <i className="bi bi-box-arrow-right"></i>
+                                Logout
+                            </Dropdown.Item>
+                        </Dropdown.Menu>
+                    </Dropdown>
+                </div>
 
                 {activeReservation ? (
                     <Button
@@ -222,10 +521,10 @@ const UserInfo = () => {
                         className="bg-slate-700 text-white hover:bg-slate-600 px-4 sm:px-6 py-2 rounded-full relative w-full sm:w-auto border-0"
                     >
                         <div className="flex items-center gap-2 sm:gap-3 justify-center sm:justify-start">
-                            <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse mt-[1px]" />
+                            <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse mt-[1px]"/>
                             <span className="text-sm sm:text-base whitespace-nowrap">
-                Active : {activeReservation.startTime} - {activeReservation.slot}
-              </span>
+                                Active : {activeReservation.startTime} - {activeReservation.slot}
+                            </span>
                         </div>
                     </Button>
                 ) : (
@@ -238,6 +537,216 @@ const UserInfo = () => {
                 )}
             </div>
 
+            {/* Modal for editing profile */}
+            {isEditingProfile && (
+                <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
+                    <div className="modal-dialog modal-dialog-centered">
+                        <div className="modal-content" style={{ backgroundColor: '#1e293b' }}>
+                            <div className="modal-header border-0">
+                                <h5 className="modal-title text-white">Edit Profile</h5>
+                                <button
+                                    type="button"
+                                    className="btn-close btn-close-white"
+                                    aria-label="Close"
+                                    onClick={() => setIsEditingProfile(false)}
+                                />
+                            </div>
+                            <div className="modal-body">
+                                <form>
+                                    <div className="form-group mb-3">
+                                        <label className="text-white mb-2">First Name</label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            value={editedProfile.firstName}
+                                            onChange={(e) => setEditedProfile(prev => ({...prev, firstName: e.target.value}))}
+                                            style={{
+                                                backgroundColor: '#2d3748',
+                                                border: '1px solid #4b5563',
+                                                color: 'white'
+                                            }}
+                                        />
+                                    </div>
+                                    <div className="form-group mb-3">
+                                        <label className="text-white mb-2">Last Name</label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            value={editedProfile.lastName}
+                                            onChange={(e) => setEditedProfile(prev => ({...prev, lastName: e.target.value}))}
+                                            style={{
+                                                backgroundColor: '#2d3748',
+                                                border: '1px solid #4b5563',
+                                                color: 'white'
+                                            }}
+                                        />
+                                    </div>
+                                    <div className="form-group mb-3">
+                                        <label className="text-white mb-2">Email</label>
+                                        <input
+                                            type="email"
+                                            className="form-control"
+                                            value={editedProfile.email}
+                                            disabled
+                                            style={{
+                                                backgroundColor: '#1f2937',
+                                                border: '1px solid #4b5563',
+                                                color: '#9ca3af',
+                                                cursor: 'not-allowed'
+                                            }}
+                                        />
+                                        <small className="text-muted">Email cannot be changed</small>
+                                    </div>
+                                </form>
+                            </div>
+                            <div className="modal-footer border-0">
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary px-4"
+                                    onClick={() => setIsEditingProfile(false)}
+                                    style={{
+                                        backgroundColor: '#4b5563',
+                                        border: 'none'
+                                    }}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-primary px-4"
+                                    onClick={handleSaveProfile}
+                                    style={{
+                                        backgroundColor: '#3b82f6',
+                                        border: 'none'
+                                    }}
+                                >
+                                    Save Changes
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal for editing vehicle */}
+            {isEditingVehicle && (
+                <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
+                    <div className="modal-dialog modal-dialog-centered">
+                        <div className="modal-content" style={{ backgroundColor: '#1e293b' }}>
+                            <div className="modal-header border-0">
+                                <h5 className="modal-title text-white">Edit Vehicle</h5>
+                                <button
+                                    type="button"
+                                    className="btn-close btn-close-white"
+                                    aria-label="Close"
+                                    onClick={() => setIsEditingVehicle(false)}
+                                />
+                            </div>
+                            <div className="modal-body">
+                                <form>
+                                    <div className="form-group mb-3">
+                                        <label className="text-white mb-2">Year</label>
+                                        <select
+                                            className="form-control"
+                                            value={editedVehicle.carYear}
+                                            onChange={(e) => setEditedVehicle(prev => ({
+                                                ...prev,
+                                                carYear: e.target.value,
+                                                carMake: '',
+                                                carModel: ''
+                                            }))}
+                                            style={{
+                                                backgroundColor: '#2d3748',
+                                                border: '1px solid #4b5563',
+                                                color: 'white'
+                                            }}
+                                        >
+                                            <option value="">Select Year</option>
+                                            {years.map(year => (
+                                                <option key={year} value={year}>{year}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="form-group mb-3">
+                                        <label className="text-white mb-2">Make</label>
+                                        <select
+                                            className="form-control"
+                                            value={editedVehicle.carMake}
+                                            onChange={(e) => setEditedVehicle(prev => ({
+                                                ...prev,
+                                                carMake: e.target.value,
+                                                carModel: ''
+                                            }))}
+                                            disabled={!editedVehicle.carYear}
+                                            style={{
+                                                backgroundColor: '#2d3748',
+                                                border: '1px solid #4b5563',
+                                                color: 'white'
+                                            }}
+                                        >
+                                            <option value="">Select Make</option>
+                                            {makes.map(make => (
+                                                <option key={make.Make_ID} value={make.Make_Name}>
+                                                    {make.Make_Name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="form-group mb-3">
+                                        <label className="text-white mb-2">Model</label>
+                                        <select
+                                            className="form-control"
+                                            value={editedVehicle.carModel}
+                                            onChange={(e) => setEditedVehicle(prev => ({
+                                                ...prev,
+                                                carModel: e.target.value
+                                            }))}
+                                            disabled={!editedVehicle.carMake}
+                                            style={{
+                                                backgroundColor: '#2d3748',
+                                                border: '1px solid #4b5563',
+                                                color: 'white'
+                                            }}
+                                        >
+                                            <option value="">Select Model</option>
+                                            {models.map(model => (
+                                                <option key={model.Model_ID} value={model.Model_Name}>
+                                                    {model.Model_Name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </form>
+                            </div>
+                            <div className="modal-footer border-0">
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary px-4"
+                                    onClick={() => setIsEditingVehicle(false)}
+                                    style={{
+                                        backgroundColor: '#4b5563',
+                                        border: 'none'
+                                    }}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-primary px-4"
+                                    onClick={handleSaveVehicle}
+                                    disabled={!editedVehicle.carYear || !editedVehicle.carMake || !editedVehicle.carModel}
+                                    style={{
+                                        backgroundColor: '#3b82f6',
+                                        border: 'none'
+                                    }}
+                                >
+                                    Save Changes
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Shared Card Container */}
             <div style={{
@@ -270,44 +779,50 @@ const UserInfo = () => {
                         </div>
 
                         <div>
-                        <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem', display: 'flex', alignItems: 'center' }}>
-                              <u><i className="bi bi-car-front me-2"></i>
-                              Your Vehicle</u>
-                          </h3>
-                          <div style={{ marginLeft: '1.75rem' }}>
-                              <p>Make: {carDetails?.carMake || "Not specified"}</p>
-                              <p>Model: {carDetails?.carModel || "Not specified"}</p>
-                              <p>Year: {carDetails?.carYear || "Not specified"}</p>
-                          </div>
-                      </div>
-                  </div>
+                            <h3 style={{
+                                fontSize: '1.25rem',
+                                fontWeight: '600',
+                                marginBottom: '1rem',
+                                display: 'flex',
+                                alignItems: 'center'
+                            }}>
+                                <u><i className="bi bi-car-front me-2"></i>
+                                    Your Vehicle</u>
+                            </h3>
+                            <div style={{marginLeft: '1.75rem'}}>
+                                <p>Make: {carDetails?.carMake || "Not specified"}</p>
+                                <p>Model: {carDetails?.carModel || "Not specified"}</p>
+                                <p>Year: {carDetails?.carYear || "Not specified"}</p>
+                            </div>
+                        </div>
+                    </div>
 
-                  {/* Right Column: Weather Widget */}
-                  <div>
-                      <WeatherWidget />
-                  </div>
-              </div>
-          </div>
+                    {/* Right Column: Weather Widget */}
+                    <div>
+                        <WeatherWidget/>
+                    </div>
+                </div>
+            </div>
 
-          {/* Reservation Button */}
-          <Link to="/dashboard/time" className="block mb-6">
-              <button style={{
-                  width: '100%',
-                  backgroundColor: '#2563eb',
-                  color: 'white',
-                  fontWeight: 'bold',
-                  padding: '0.75rem 1.5rem',
-                  borderRadius: '0.5rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-              }}>
-                  <i className="bi bi-car-front me-2"></i>
-                  Make a Reservation
-              </button>
-          </Link>
+            {/* Reservation Button */}
+            <Link to="/dashboard/time" className="block mb-6">
+                <button style={{
+                    width: '100%',
+                    backgroundColor: '#2563eb',
+                    color: 'white',
+                    fontWeight: 'bold',
+                    padding: '0.75rem 1.5rem',
+                    borderRadius: '0.5rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                }}>
+                    <i className="bi bi-car-front me-2"></i>
+                    Make a Reservation
+                </button>
+            </Link>
 
-          {/* Reservations Section */}
+            {/* Reservations Section */}
             <div id="reservations-section" className="container p-4"
                  style={{backgroundColor: '#1B2641', borderRadius: '12px'}}>
                 {/* Search and Filter */}
@@ -363,11 +878,8 @@ const UserInfo = () => {
 
                 {/* Reservations Title */}
                 <div className="d-flex align-items-center mb-4">
-                  
-                      <i className="bi bi-calendar-check me-2 text-white"></i>
-                    <u style= {{color: 'white'}}>
-                      <h2 className="text-white m-0">Your Reservations</h2>
-                    </u>
+                    <i className="bi bi-calendar-check me-2 text-white"></i>
+                    <h2 className="text-white m-0">Your Reservations</h2>
                 </div>
 
                 {/* Current Reservations */}
@@ -401,7 +913,7 @@ const UserInfo = () => {
                                 </div>
                             ))
                         ) : (
-                            <p className="text-white-50">
+                            <p className="text-white opacity-30">
                                 {searchTerm ? "No matching current reservations found." : "No current reservations found."}
                             </p>
                         )}
@@ -439,7 +951,7 @@ const UserInfo = () => {
                                 </div>
                             ))
                         ) : (
-                            <p className="text-white-50">
+                            <p className="text-white opacity-30">
                                 {searchTerm ? "No matching past reservations found." : "No past reservations found."}
                             </p>
                         )}
@@ -497,7 +1009,7 @@ const UserInfo = () => {
                                         </div>
                                     ))
                                 ) : (
-                                    <p className="text-white-50 mt-3">
+                                    <p className="text-white opacity-30">
                                         {searchTerm ? "No matching archived reservations found." : "No archived reservations found."}
                                     </p>
                                 )}
