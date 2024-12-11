@@ -680,3 +680,73 @@ input[type="Date"] {
 .fa-linkedin:before {
   content: "\f0e1";
 }
+
+
+/**** Meat the Team ******/
+
+.title {
+  font-size: 2.5em;
+  margin-bottom: 20px;
+}
+.team {
+  display: flex;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+.card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  width: 400px;
+  text-align: center;
+}
+.card img {
+  width: 100%;
+  height: 300px;
+  object-fit: cover;
+}
+.card h3 {
+  font-size: 1.5em;
+  margin: 15px 0 5px;
+}
+.card p {
+  font-size: 1em;
+  color: #777;
+  margin: 0 10px 15px;
+}
+.card .role {
+  font-weight: bold;
+  color: #555;
+}
+
+.social-icons {
+  display: flex; /* Enables flexbox */
+  justify-content: center; /* Centers items horizontally */
+  align-items: center; /* Centers items vertically */
+  gap: 15px; /* Adds spacing between the icons */
+  margin-top: 15px;
+}
+
+.icon {
+  margin: 0 10px;
+  color: #333;
+  transition: color 0.3s ease;
+}
+
+.icon.linkedin:hover {
+  color: #0077b5; /* LinkedIn blue */
+}
+
+.icon.github:hover {
+  color: #24292e; /* GitHub black */
+}
+
+.social-icons {
+  margin-top: 15px;
+}
+
+.teambg {
+  background-color: #192440;;
+}

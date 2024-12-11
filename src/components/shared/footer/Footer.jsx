@@ -41,7 +41,7 @@ function Footer() {
           </div>
           <div className="align-self-center text-center text-md-left my-2">
             <a href="/team">
-              Meet the Team
+              Our Team
             </a>
           </div>
           <div className="align-self-center text-center text-md-left">
