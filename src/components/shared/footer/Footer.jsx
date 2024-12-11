@@ -11,7 +11,7 @@ const DownloadButtons = () => {
 
       {/* Google Play Button */}
       <a href="https://play.google.com/store/apps" target="_blank" rel="noopener noreferrer">
-        <img src={playStoreBadge} alt="Get it on Google Play" style={{ height: '80px' }} />
+        <img src={playStoreBadge} alt="Get it on Google Play" style={{ height: '55px' }} />
       </a>
     </div>
   );
@@ -44,7 +44,7 @@ function Footer() {
               Meet the Team
             </a>
           </div>
-          <div className="align-self-center text-center text-md-left my-2 ">
+          <div className="align-self-center text-center text-md-left">
             <DownloadButtons />
           </div>
       </div>

@@ -3,8 +3,6 @@ function Terms() {
     return(
         <div>
             <h1>Terms and Conditions</h1>
-
-            <h3>Effective Date: November 24th, 2024</h3>
                 <p>
                     Welcome to Save-A-Slot! By accessing or using our service, you agree to comply with these Terms and Conditions. 
                     Please read them carefully before using our website or app. 

@@ -17,7 +17,11 @@ function Header() {
         <header>
           <div className="container row justify-content-between">
             <div className="col-2">
+              <a 
+              href="https://www.umb.edu/#"
+              >
               <img src={logo} alt="logo" />
+              </a>
             </div>
             <div className="col-6 text-right">
               <a

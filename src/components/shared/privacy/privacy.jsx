@@ -1,7 +1,7 @@
 function Privacy() {
     return(
         <div>
-            <h1>Effective Date: November 24th, 2024</h1>
+            <h1>Privacy Policy</h1>
             <p>
                 Welcome to Save-A-Slot! Your privacy is important to us.
                 This Privacy Policy explains how we collect, use, and protect your information.
