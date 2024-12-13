@@ -20,7 +20,8 @@ const SignUp = () => {
   const [models, setModels] = useState([]);
   const [loading, setLoading] = useState(false);
   const [yearData, setYearData] = useState(null);
-
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
   // Generate year options from 1999 to current year
   const currentYear = new Date().getFullYear();
   const years = Array.from(new Array(currentYear - 1991), (val, index) => currentYear - index);
@@ -115,6 +116,14 @@ const SignUp = () => {
 
   const handleSignUp = async (e) => {
     e.preventDefault();
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+    setError('');
+    // Handle successful password confirmation here
+    console.log('Password confirmed successfully');
 
     try {
       await createUserWithEmailAndPassword(auth, email, password);
@@ -265,6 +274,24 @@ const SignUp = () => {
                       required
                   />
                 </div>
+
+                <div className="form-group col-md-6">
+                  <label>Password</label>
+                  <input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Confirm your password"
+                      className="form-control"
+                      required
+                  />
+                </div>
+
+                {error && (
+                    <div className="text-red-500 text-sm mb-4">
+                      {error}
+                    </div>)}
+
               </div>
 
               <div className="container row justify-content-between">
