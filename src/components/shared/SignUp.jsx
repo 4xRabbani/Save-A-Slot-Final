@@ -21,6 +21,7 @@ const SignUp = () => {
   const [loading, setLoading] = useState(false);
   const [yearData, setYearData] = useState(null);
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   // Generate year options from 1999 to current year
   const currentYear = new Date().getFullYear();
@@ -156,6 +157,14 @@ const SignUp = () => {
     }
   };
 
+  const handlePasswordChange = (event) => {
+    setPassword(event.target.value);
+  };
+
+  const toggleShowPassword = () => {
+    setShowPassword(!showPassword);
+  };
+
   return (
       <>
         <div className="jumbotron-fluid py-2 container">
@@ -273,6 +282,19 @@ const SignUp = () => {
                       className="form-control"
                       required
                   />
+                </div>
+
+                <div>
+                  <label htmlFor="password">Password:</label>
+                  <input
+                      type={showPassword ? 'text' : 'password'}
+                      id="password"
+                      value={password}
+                      onChange={handlePasswordChange}
+                  />
+                  <button type="button" onClick={toggleShowPassword}>
+                    {showPassword ? 'Hide Password' : 'Show Password'}
+                  </button>
                 </div>
 
                 <div className="form-group col-md-6">
